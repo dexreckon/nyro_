@@ -4,3 +4,8 @@ __pycache__/
 .nyro_trash/
 .env
 *.ppn
+nyro_config.local.json
+nyro_data/
+tests/e2e/last_run.png
+models/*.onnx
+.venv/

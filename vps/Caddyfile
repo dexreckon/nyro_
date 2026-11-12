@@ -1,0 +1,12 @@
+# Automatic HTTPS for $NYRO_DOMAIN (point its DNS A record at this VPS first).
+{$NYRO_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "microphone=(self), camera=(), geolocation=()"
+	}
+	reverse_proxy relay:8000
+}

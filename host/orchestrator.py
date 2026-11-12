@@ -40,7 +40,10 @@ class Orchestrator:
 
     def _mcp_file(self, persona: str) -> str:
         if persona not in self._mcp_files:
-            self._mcp_files[persona] = write_mcp_config(PERSONAS[persona], self._mcp_dir, self.config_path)
+            a, o = self.cfg["approval"], self.cfg["overlay"]
+            env = {"NYRO_APPROVAL_URL": f"http://{a['host']}:{a['port']}/approve",
+                   "NYRO_OVERLAY_URL": f"http://{o['bridge_host']}:{o['bridge_port']}"}
+            self._mcp_files[persona] = write_mcp_config(PERSONAS[persona], self._mcp_dir, self.config_path, env)
         return str(self._mcp_files[persona])
 
     def _emit_budget(self) -> str:

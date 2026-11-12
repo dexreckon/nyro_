@@ -187,3 +187,15 @@ class RunnerAndOrchestratorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class McpEnvTests(unittest.TestCase):
+    def test_mcp_config_carries_configured_ports(self):
+        with tempfile.TemporaryDirectory() as d:
+            cfg = load_config()
+            cfg["approval"]["port"], cfg["overlay"]["bridge_port"] = 9911, 9922
+            o = Orchestrator(cfg, RequestBudget(Path(d) / "b.db", 5), Path(d))
+            data = json.loads(Path(o._mcp_file("fileclerk")).read_text())
+            env = data["mcpServers"]["nyro-fileclerk"]["env"]
+            self.assertEqual(env["NYRO_APPROVAL_URL"], "http://127.0.0.1:9911/approve")
+            self.assertEqual(env["NYRO_OVERLAY_URL"], "http://127.0.0.1:9922")

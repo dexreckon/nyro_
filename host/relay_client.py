@@ -36,7 +36,10 @@ class RelayClient:
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self._q = asyncio.Queue(maxsize=500)
-        self._loop.run_until_complete(self._main())
+        try:
+            self._loop.run_until_complete(self._main())
+        finally:
+            self._loop.close()
 
     async def _main(self) -> None:
         import websockets

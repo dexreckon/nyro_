@@ -152,3 +152,28 @@ class AppPipelineTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HostRelayContractTests(unittest.TestCase):
+    """Everything the host emits must pass the relay's host->phone whitelist."""
+
+    def test_all_orchestrator_events_survive_the_envelope(self):
+        from vps.relay import HOST_TO_MOBILE
+        with tempfile.TemporaryDirectory() as d:
+            sent = []
+            cfg = load_config()
+            orch = Orchestrator(cfg, RequestBudget(Path(d) / "b.db", 5), Path(d))
+            app = NyroApp(cfg, Path(d), orch, send_phone=sent.append)
+            for ev in [{"type": "start", "persona": "sysop", "query": "q"}, {"type": "text", "text": "hi"},
+                       {"type": "tool", "name": "x"}, {"type": "usage", "five_hour": 0.3},
+                       {"type": "budget", "used": 1, "cap": 400}, {"type": "done", "text": "t"},
+                       {"type": "error", "error": "e"}]:
+                app.on_event(ev)
+            for m in sent:
+                self.assertEqual(m["type"], "event", m)
+                self.assertIn(m["type"], HOST_TO_MOBILE)
+            self.assertEqual([m["event"] for m in sent],
+                             ["start", "text", "tool", "usage", "budget", "done", "error"])
+            self.assertEqual(sent[1]["text"], "hi")
+            for other in ("heard", "reply", "listening", "idle", "screenshot", "approval_request"):
+                self.assertIn(other, HOST_TO_MOBILE)

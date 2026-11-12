@@ -35,7 +35,8 @@ class NyroApp:
 
     # -- events from the orchestrator -> phone
     def on_event(self, ev: dict) -> None:
-        self._phone({"type": "event", **ev})
+        # NB: orchestrator events carry their own "type"; keep it under "event" or it overwrites the envelope
+        self._phone({"type": "event", "event": ev.get("type"), **{k: v for k, v in ev.items() if k != "type"}})
         if ev.get("type") == "tool" and ev.get("name") == "capture_foreground_window":
             self._send_preview()
 

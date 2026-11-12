@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12121a">
+  <meta name="color-scheme" content="dark">
+  <title>Nyro</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="bar">
+    <div class="brand"><span id="dot" class="dot off" aria-hidden="true"></span><strong>Nyro</strong>
+      <span id="conn" class="muted">Connecting…</span></div>
+    <div class="meters">
+      <div class="meter" title="AI requests today"><span id="budgetText">AI –/–</span><i><b id="budgetBar"></b></i></div>
+      <div class="meter" title="Claude plan usage (5-hour window)"><span id="usageText">5h –</span><i><b id="usageBar"></b></i></div>
+    </div>
+  </header>
+
+  <section id="pair" class="card" hidden>
+    <h1>Pair with your laptop</h1>
+    <p class="muted">Enter the pairing token from your relay's <code>.env</code> file.</p>
+    <form id="pairForm">
+      <label for="token">Pairing token</label>
+      <input id="token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" minlength="24" required>
+      <button class="primary" type="submit">Connect</button>
+    </form>
+    <p id="pairError" class="err" role="alert"></p>
+  </section>
+
+  <main id="main" hidden>
+    <figure id="shotWrap" hidden>
+      <img id="shot" alt="Latest screenshot from your laptop">
+      <figcaption class="muted">What Nyro sees (800×450)</figcaption>
+    </figure>
+
+    <div id="stream" role="log" aria-live="polite" aria-label="Live activity"></div>
+
+    <div class="chips" id="chips">
+      <button type="button" data-say="Help me here">Help me here</button>
+      <button type="button" data-say="Explain this slide">Explain slide</button>
+      <button type="button" data-say="Mute">Mute</button>
+      <button type="button" data-say="Battery">Battery</button>
+      <button type="button" data-say="Clear the overlay">Clear</button>
+    </div>
+  </main>
+
+  <footer id="dock" hidden>
+    <div class="langs" role="group" aria-label="Voice language">
+      <button type="button" id="langEn" aria-pressed="true">EN</button>
+      <button type="button" id="langUr" aria-pressed="false">اردو</button>
+    </div>
+    <form id="sayForm" autocomplete="off">
+      <input id="say" type="text" dir="auto" maxlength="500" placeholder="Type a command" aria-label="Command">
+      <button class="primary" type="submit" aria-label="Send">Send</button>
+    </form>
+    <button type="button" id="mic" aria-label="Hold to talk" title="Hold to talk">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor"
+        d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12h-2Z"/></svg>
+    </button>
+  </footer>
+
+  <dialog id="approval" aria-labelledby="apTitle">
+    <h2 id="apTitle">Approve this action?</h2>
+    <p id="apSummary"></p>
+    <p class="muted"><code id="apAction"></code> · <span id="apTimer"></span></p>
+    <div class="row">
+      <button type="button" id="apReject" class="danger">Reject</button>
+      <button type="button" id="apApprove" class="primary">Approve</button>
+    </div>
+  </dialog>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
