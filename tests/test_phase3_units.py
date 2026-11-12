@@ -253,3 +253,19 @@ class ApprovalTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InlineImageToolTests(unittest.TestCase):
+    def test_capture_tool_returns_inline_webp(self):
+        from mcp.server.fastmcp import Image as McpImage
+        from host.mcp_servers import screencoach_mcp as sc
+        with tempfile.TemporaryDirectory() as d:
+            sc._coach = Coach(d, lambda: downscale_to_webp(Image.new("RGB", (1920, 1080))),
+                              lambda c: True, lambda: True)
+            try:
+                out = sc.capture_foreground_window()
+            finally:
+                sc._coach = None
+        self.assertIn("800x450", out[0])
+        self.assertIsInstance(out[1], McpImage)
+        self.assertEqual(out[1].data[:4], b"RIFF")  # WebP container

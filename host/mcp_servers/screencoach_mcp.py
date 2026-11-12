@@ -1,9 +1,9 @@
 """ScreenCoach MCP server: capture the foreground window and guide with the overlay."""
 from __future__ import annotations
 
-import json
+from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Image
 
 from host.mcp_servers import _common as C
 from host.overlay import client as overlay_client
@@ -31,12 +31,15 @@ def coach() -> Coach:
 
 
 @mcp.tool()
-def capture_foreground_window() -> str:
-    """Screenshot the active window, downscaled to 800px WebP. Returns a file path (use Read on it)
-    and its size. All coordinates you later return must be in THIS image's pixel space."""
+def capture_foreground_window():
+    """Screenshot the active window (800px WebP), returned inline as an image. All coordinates
+    you later pass to render_screen_annotations must be in THIS image's pixel space."""
     try:
         C.guard("capture_foreground_window")
-        return json.dumps(coach().capture())
+        info = coach().capture()
+        data = Path(info["path"]).read_bytes()
+        return [f"Image is {info['width']}x{info['height']} px. Use these pixel coordinates.",
+                Image(data=data, format="webp")]
     except Exception as e:
         return C.as_error(e)
 

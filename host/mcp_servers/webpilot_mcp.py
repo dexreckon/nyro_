@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import io
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Image
 
 from host import webpilot_impl as W
 from host.mcp_servers import _common as C
@@ -86,8 +86,8 @@ async def extract_dom_text() -> str:
 
 
 @mcp.tool()
-async def capture_tab_screenshot() -> str:
-    """Screenshot of the active tab (800px WebP). Returns a file path to Read."""
+async def capture_tab_screenshot():
+    """Screenshot of the active tab (800px WebP), returned inline as an image."""
     try:
         C.guard("capture_tab_screenshot")
         from PIL import Image
@@ -98,7 +98,7 @@ async def capture_tab_screenshot() -> str:
         cap = downscale_to_webp(Image.open(io.BytesIO(png)))
         p = C.data_dir() / f"tab_{int(time.time() * 1000)}.webp"
         p.write_bytes(cap.webp)
-        return str(p)
+        return [f"Image is {cap.scaled_w}x{cap.scaled_h} px.", Image(data=cap.webp, format="webp")]
     except Exception as e:
         return C.as_error(e)
 

@@ -10,3 +10,14 @@ edge-tts>=6
 miniaudio>=1.59   # mp3 playback for edge-tts
 # Later phases: pywin32, pycaw, psutil, screen_brightness_control, playwright,
 # faster-whisper, edge-tts, openwakeword, pystray, fastapi, uvicorn
+# Phase 4:
+numpy>=1.26
+sounddevice>=0.4
+faster-whisper>=1.0
+openwakeword>=0.6          # wake word ("Hey Nyro" model goes in models/hey_nyro.onnx)
+pystray>=0.19
+websockets>=12
+pywin32>=306; sys_platform == "win32"
+pycaw>=20230407; sys_platform == "win32"
+screen_brightness_control>=0.20; sys_platform == "win32"
+playwright>=1.40

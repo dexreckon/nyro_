@@ -40,6 +40,26 @@ def _endpoint():
     return cast(iface, POINTER(IAudioEndpointVolume))
 
 
+def get_volume() -> int:
+    _need_windows()
+    return round(_endpoint().GetMasterVolumeLevelScalar() * 100)
+
+
+def get_brightness() -> int:
+    _need_windows()
+    import screen_brightness_control as sbc
+    v = sbc.get_brightness()
+    return int(v[0] if isinstance(v, list) else v)
+
+
+def change_volume(delta: int) -> str:
+    return set_volume(get_volume() + int(delta))
+
+
+def change_brightness(delta: int) -> str:
+    return set_brightness(get_brightness() + int(delta))
+
+
 def set_volume(level: int) -> str:
     _need_windows()
     lv = clamp_level(level)
