@@ -1,0 +1,3 @@
+# Phase 1 uses the standard library only. Later phases add:
+# PyQt6, mss, Pillow, pynput, pywin32, pycaw, psutil, screen_brightness_control,
+# playwright, faster-whisper, edge-tts, pvporcupine, pystray, fastapi, uvicorn

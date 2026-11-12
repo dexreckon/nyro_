@@ -1,0 +1,52 @@
+{
+  "model": "claude-haiku-5-5",
+  "effort": "low",
+  "languages": ["en", "ur"],
+  "budget": {
+    "daily_request_cap": 400,
+    "warn_ratio": 0.8,
+    "hourly_pace_warn": 60,
+    "db_path": "nyro_state.sqlite3",
+    "local_commands_always_on": true
+  },
+  "vision": {
+    "target_width": 800,
+    "webp_quality": 75
+  },
+  "session": {
+    "reset_every_turns": 5
+  },
+  "wake_word": {
+    "engine": "porcupine",
+    "phrase": "Hey Nyro",
+    "keyword_path": "",
+    "access_key_env": "PICOVOICE_ACCESS_KEY"
+  },
+  "firewall": {
+    "allowed_roots": [],
+    "trash_dirname": ".nyro_trash",
+    "protected_path_prefixes": [
+      "C:\\Windows",
+      "C:\\Program Files",
+      "C:\\Program Files (x86)",
+      "C:\\ProgramData",
+      "/etc",
+      "/usr",
+      "/bin",
+      "/sbin",
+      "/boot",
+      "/sys",
+      "/proc"
+    ],
+    "protected_path_fragments": ["system32", "syswow64", "\\config\\sam", "ntuser.dat"],
+    "blocked_processes": [
+      "csrss.exe", "wininit.exe", "winlogon.exe", "lsass.exe",
+      "services.exe", "smss.exe", "svchost.exe", "explorer.exe", "system"
+    ]
+  },
+  "overlay": {
+    "bridge_host": "127.0.0.1",
+    "bridge_port": 8765,
+    "clear_hotkey": "ctrl+shift+x"
+  }
+}
