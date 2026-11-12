@@ -4,5 +4,9 @@ PyQt6>=6.6
 Pillow>=10
 pynput>=1.7
 mss>=9            # Windows screen capture
+mcp>=1.9,<2       # MCP SDK (FastMCP API); v2 renamed it
+psutil>=5.9
+edge-tts>=6
+miniaudio>=1.59   # mp3 playback for edge-tts
 # Later phases: pywin32, pycaw, psutil, screen_brightness_control, playwright,
 # faster-whisper, edge-tts, openwakeword, pystray, fastapi, uvicorn

@@ -1,7 +1,10 @@
 {
   "model": "claude-haiku-5-5",
   "effort": "low",
-  "languages": ["en", "ur"],
+  "languages": [
+    "en",
+    "ur"
+  ],
   "budget": {
     "daily_request_cap": 400,
     "warn_ratio": 0.8,
@@ -17,10 +20,11 @@
     "reset_every_turns": 5
   },
   "wake_word": {
-    "engine": "porcupine",
+    "engine": "openwakeword",
     "phrase": "Hey Nyro",
-    "keyword_path": "",
-    "access_key_env": "PICOVOICE_ACCESS_KEY"
+    "model_path": "models/hey_nyro.onnx",
+    "threshold": 0.5,
+    "hotkey": "ctrl+alt+n"
   },
   "firewall": {
     "allowed_roots": [],
@@ -38,15 +42,61 @@
       "/sys",
       "/proc"
     ],
-    "protected_path_fragments": ["system32", "syswow64", "\\config\\sam", "ntuser.dat"],
+    "protected_path_fragments": [
+      "system32",
+      "syswow64",
+      "\\config\\sam",
+      "ntuser.dat"
+    ],
     "blocked_processes": [
-      "csrss.exe", "wininit.exe", "winlogon.exe", "lsass.exe",
-      "services.exe", "smss.exe", "svchost.exe", "explorer.exe", "system"
+      "csrss.exe",
+      "wininit.exe",
+      "winlogon.exe",
+      "lsass.exe",
+      "services.exe",
+      "smss.exe",
+      "svchost.exe",
+      "explorer.exe",
+      "system"
     ]
   },
   "overlay": {
     "bridge_host": "127.0.0.1",
     "bridge_port": 8765,
     "clear_hotkey": "ctrl+shift+x"
+  },
+  "data_dir": "nyro_data",
+  "approval": {
+    "host": "127.0.0.1",
+    "port": 8766,
+    "timeout_seconds": 120
+  },
+  "claude": {
+    "use_bare": false,
+    "cli": "claude",
+    "timeout_seconds": 120,
+    "max_turns": 8
+  },
+  "screencoach": {
+    "click_timeout_seconds": 90,
+    "click_pad_px": 8
+  },
+  "webpilot": {
+    "cdp_url": "http://127.0.0.1:9222",
+    "allowed_schemes": [
+      "http",
+      "https"
+    ]
+  },
+  "relay": {
+    "url": "ws://127.0.0.1:8000/ws/host",
+    "token_env": "NYRO_PAIR_TOKEN"
+  },
+  "voice": {
+    "stt_model": "small",
+    "voices": {
+      "en": "en-US-AriaNeural",
+      "ur": "ur-PK-UzmaNeural"
+    }
   }
 }
