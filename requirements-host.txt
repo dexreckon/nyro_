@@ -1,3 +1,8 @@
-# Phase 1 uses the standard library only. Later phases add:
-# PyQt6, mss, Pillow, pynput, pywin32, pycaw, psutil, screen_brightness_control,
-# playwright, faster-whisper, edge-tts, pvporcupine, pystray, fastapi, uvicorn
+# Phase 1: standard library only.
+# Phase 2:
+PyQt6>=6.6
+Pillow>=10
+pynput>=1.7
+mss>=9            # Windows screen capture
+# Later phases: pywin32, pycaw, psutil, screen_brightness_control, playwright,
+# faster-whisper, edge-tts, openwakeword, pystray, fastapi, uvicorn

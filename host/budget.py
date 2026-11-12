@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sqlite3
-import time
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -41,7 +41,7 @@ class RequestBudget:
         return c
 
     def _init_db(self) -> None:
-        with self._conn() as c:
+        with closing(self._conn()) as c:
             c.execute("CREATE TABLE IF NOT EXISTS requests (ts REAL NOT NULL, day TEXT NOT NULL)")
             c.execute("CREATE INDEX IF NOT EXISTS idx_req_day ON requests(day)")
             c.execute("CREATE TABLE IF NOT EXISTS overrides (day TEXT PRIMARY KEY, extra INTEGER NOT NULL)")
@@ -57,7 +57,7 @@ class RequestBudget:
     def status(self) -> BudgetStatus:
         day = self._today()
         now_ts = self._now().timestamp()
-        with self._conn() as c:
+        with closing(self._conn()) as c:
             used = c.execute("SELECT COUNT(*) FROM requests WHERE day=?", (day,)).fetchone()[0]
             hour = c.execute("SELECT COUNT(*) FROM requests WHERE ts>=?", (now_ts - 3600,)).fetchone()[0]
             cap = self._effective_cap(c, day)
@@ -87,7 +87,7 @@ class RequestBudget:
     def override_today(self, extra: int = 100) -> None:
         """Manual tray 'override for today': raise today's cap by `extra`."""
         day = self._today()
-        with self._conn() as c:
+        with closing(self._conn()) as c:
             c.execute(
                 "INSERT INTO overrides(day, extra) VALUES (?, ?) "
                 "ON CONFLICT(day) DO UPDATE SET extra = extra + excluded.extra", (day, extra))
@@ -95,5 +95,5 @@ class RequestBudget:
     def refund(self) -> None:
         """Give back the most recent request (e.g. the CLI failed before answering)."""
         day = self._today()
-        with self._conn() as c:
+        with closing(self._conn()) as c:
             c.execute("DELETE FROM requests WHERE rowid = (SELECT MAX(rowid) FROM requests WHERE day=?)", (day,))
