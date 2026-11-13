@@ -1,15 +1,21 @@
-# Nyro relay + HTTPS reverse proxy for a small (4 GB) VPS.
-#   1. cp vps/.env.example .env  and fill it in
-#   2. docker compose up -d --build
+# Nyro relay (+ optional HTTPS proxy). Safe to run next to other apps on the same VPS:
+#   * own project name, container, volume; never touches other containers
+#   * by default it does NOT bind ports 80/443: it listens on 127.0.0.1:${NYRO_PORT:-8000} only
+#
+# Shared VPS (you already have a proxy):   docker compose up -d --build        (see docs/SHARED_VPS.md)
+# Dedicated VPS (no proxy yet):            docker compose --profile caddy up -d --build
+name: nyro
+
 services:
   relay:
+    container_name: nyro-relay
     build:
       context: .
       dockerfile: vps/Dockerfile
     restart: unless-stopped
     env_file: .env
     environment:
-      NYRO_TRUST_PROXY: "1"          # real client IP comes from Caddy's X-Forwarded-For
+      NYRO_TRUST_PROXY: "1"          # real client IP = last X-Forwarded-For entry (set by your proxy)
     volumes:
       - relay_data:/data
     read_only: true
@@ -17,9 +23,12 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     mem_limit: 256m
-    expose: ["8000"]                 # internal only: never published to the internet
+    ports:
+      - "127.0.0.1:${NYRO_PORT:-8000}:8000"   # loopback only: never reachable from the internet directly
 
   caddy:
+    profiles: ["caddy"]               # only for a VPS with nothing on ports 80/443
+    container_name: nyro-caddy
     image: caddy:2
     restart: unless-stopped
     depends_on: [relay]

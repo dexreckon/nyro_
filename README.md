@@ -32,11 +32,14 @@ local keeps working. Tray menu: "Allow +100 requests today". Failed calls are re
 ## Setup
 
 ### 1. VPS (4 GB is plenty)
+Already running other apps (e.g. QuickBites)? See **[docs/SHARED_VPS.md](docs/SHARED_VPS.md)**: Nyro adds one
+small container and does not touch ports 80/443 by default.
 ```bash
-cp vps/.env.example .env      # set NYRO_DOMAIN and NYRO_PAIR_TOKEN (openssl rand -hex 32)
-docker compose up -d --build
+cp vps/.env.example .env      # set NYRO_PAIR_TOKEN (openssl rand -hex 32)
+docker compose up -d --build                    # relay on 127.0.0.1:8000; put your proxy in front
+# dedicated VPS with nothing on 80/443:  docker compose --profile caddy up -d --build   (also set NYRO_DOMAIN)
 ```
-Open `https://<your domain>` on your phone, paste the token, and "Add to Home screen".
+Open `https://<your nyro domain>` on your phone, paste the token, and "Add to Home screen".
 
 ### 2. Windows laptop
 ```powershell

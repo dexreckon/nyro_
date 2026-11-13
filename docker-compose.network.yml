@@ -1,0 +1,11 @@
+# Optional override for when your existing reverse proxy RUNS IN DOCKER and cannot reach the host's 127.0.0.1.
+# It attaches the relay to your proxy's existing Docker network (set NYRO_PROXY_NETWORK in .env), so the proxy
+# can use  nyro-relay:8000  as the upstream.
+#   docker compose -f docker-compose.yml -f docker-compose.network.yml up -d --build
+services:
+  relay:
+    networks: [default, proxy]
+networks:
+  proxy:
+    external: true
+    name: ${NYRO_PROXY_NETWORK:?set NYRO_PROXY_NETWORK in .env to your proxy's docker network}
