@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="en" dir="ltr" data-theme="system">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#12121a">
-  <meta name="color-scheme" content="dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#212121">
+  <meta name="color-scheme" content="light dark">
   <title>Nyro</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
@@ -12,68 +12,132 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header id="bar">
-    <div class="brand"><span id="dot" class="dot off" aria-hidden="true"></span><strong>Nyro</strong>
-      <span id="conn" class="muted">Connecting…</span></div>
-    <div class="meters">
-      <div class="meter" title="AI requests today"><span id="budgetText">AI –/–</span><i><b id="budgetBar"></b></i></div>
-      <div class="meter" title="Claude plan usage (5-hour window)"><span id="usageText">5h –</span><i><b id="usageBar"></b></i></div>
-    </div>
-  </header>
+<svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-new" viewBox="0 0 24 24"><path d="M12 20h8M16 4l4 4L8 20H4v-4L16 4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-screen" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 20h8M12 16.5V20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v5.5c0 4.3 2.9 7.9 7 9.5 4.1-1.6 7-5.2 7-9.5V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m9 12 2.2 2.2L15.5 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-logo" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10.5" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="16" cy="16" r="3.6" fill="currentColor"/></symbol>
+  </defs>
+</svg>
 
-  <section id="pair" class="card" hidden>
-    <h1>Pair with your laptop</h1>
-    <p class="muted">Enter the pairing token from your relay's <code>.env</code> file.</p>
-    <form id="pairForm">
-      <label for="token">Pairing token</label>
-      <input id="token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" minlength="24" required>
-      <button class="primary" type="submit">Connect</button>
+<!-- First run / pairing -->
+<section id="onboard" hidden>
+  <form id="obForm" autocomplete="off">
+    <div class="ob-logo"><svg class="ic xl"><use href="#i-logo"/></svg></div>
+    <h1>Connect to your laptop</h1>
+    <p class="muted">Control Nyro from anywhere. Enter the details from your server setup.</p>
+    <div id="obServerRow">
+      <label for="obServer">Server address</label>
+      <input id="obServer" type="url" inputmode="url" placeholder="nyro.yourdomain.com" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <label for="obToken">Pairing token</label>
+    <input id="obToken" type="password" placeholder="Paste your token" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <p id="obError" class="err" role="alert"></p>
+    <button class="btn primary wide" type="submit">Connect</button>
+    <p class="muted small">Your token stays on this phone. Nothing is sent anywhere except your own server.</p>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <div id="scrim" hidden></div>
+
+  <aside id="sidebar" aria-label="Menu">
+    <div class="sb-head">
+      <div class="brand"><svg class="ic lg"><use href="#i-logo"/></svg><span>Nyro</span></div>
+      <button type="button" class="icon-btn" id="btnCloseSide" aria-label="Close menu"><svg class="ic"><use href="#i-close"/></svg></button>
+    </div>
+    <button type="button" class="btn side-new" id="btnNewSide"><svg class="ic"><use href="#i-new"/></svg>New chat</button>
+    <nav id="chatList" aria-label="Chats"></nav>
+    <div class="sb-foot">
+      <div class="status-card">
+        <div class="status-row"><span id="sbDot" class="dot off"></span><span id="sbStatus">Connecting…</span></div>
+        <div class="meter" title="AI requests today"><div class="meter-top"><span id="budgetLabel">AI requests today</span><span id="budgetText">–</span></div><i><b id="budgetBar"></b></i></div>
+        <div class="meter" title="Claude plan usage (5-hour window)"><div class="meter-top"><span>Plan usage (5h)</span><span id="usageText">–</span></div><i><b id="usageBar"></b></i></div>
+      </div>
+      <button type="button" class="menu-item" id="btnShot"><svg class="ic"><use href="#i-screen"/></svg>What Nyro sees</button>
+      <button type="button" class="menu-item" id="btnSettings"><svg class="ic"><use href="#i-gear"/></svg>Settings</button>
+    </div>
+  </aside>
+
+  <section id="chat">
+    <header id="top">
+      <button type="button" class="icon-btn" id="btnMenu" aria-label="Open menu"><svg class="ic"><use href="#i-menu"/></svg></button>
+      <div id="titleWrap"><span id="title">Nyro</span><span id="persona" class="chip" hidden></span></div>
+      <span id="topDot" class="dot off" title="Laptop status"></span>
+      <button type="button" class="icon-btn" id="btnNew" aria-label="New chat"><svg class="ic"><use href="#i-new"/></svg></button>
+    </header>
+
+    <div id="banner" hidden role="status"></div>
+
+    <div id="scroll">
+      <div id="thread" role="log" aria-live="polite" aria-label="Conversation">
+        <div id="empty">
+          <div class="empty-logo"><svg class="ic xl"><use href="#i-logo"/></svg></div>
+          <h1>What can I help with?</h1>
+          <div id="suggestions">
+            <button type="button" data-say="Help me here"><b>Guide me</b><span>step by step on this screen</span></button>
+            <button type="button" data-say="Explain this slide"><b>Explain this slide</b><span>with arrows and voice</span></button>
+            <button type="button" data-say="Set volume to 30"><b>Volume 30%</b><span>instant, no AI needed</span></button>
+            <button type="button" data-say="Battery"><b>Battery &amp; CPU</b><span>check your laptop</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <form id="composer" autocomplete="off">
+      <div class="comp-box">
+        <textarea id="input" rows="1" dir="auto" maxlength="2000" placeholder="Message Nyro" aria-label="Message Nyro" enterkeyhint="send"></textarea>
+        <div class="comp-actions">
+          <button type="button" id="btnLang" class="pill" aria-label="Voice language" title="Voice language">EN</button>
+          <button type="button" id="btnMic" class="round" aria-label="Dictate"><svg class="ic"><use href="#i-mic"/></svg></button>
+          <button type="submit" id="btnSend" class="round send" aria-label="Send" disabled><svg class="ic"><use href="#i-send"/></svg></button>
+        </div>
+      </div>
+      <p class="foot muted">Risky actions always wait for your approval.</p>
     </form>
-    <p id="pairError" class="err" role="alert"></p>
   </section>
+</div>
 
-  <main id="main" hidden>
-    <figure id="shotWrap" hidden>
-      <img id="shot" alt="Latest screenshot from your laptop">
-      <figcaption class="muted">What Nyro sees (800×450)</figcaption>
-    </figure>
+<dialog id="settings" aria-labelledby="stTitle">
+  <div class="dlg-head"><h2 id="stTitle">Settings</h2><button type="button" class="icon-btn" id="stClose" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
+  <div class="field" id="stServerRow"><label for="stServer">Server address</label><input id="stServer" type="url" inputmode="url" autocapitalize="off" spellcheck="false"></div>
+  <div class="field"><label for="stToken">Pairing token</label><input id="stToken" type="password" placeholder="Leave blank to keep current" autocomplete="off" spellcheck="false"></div>
+  <div class="field"><label for="stLang">Voice language</label><select id="stLang"><option value="en">English</option><option value="ur">اردو (Urdu)</option></select></div>
+  <div class="field"><label for="stTheme">Appearance</label><select id="stTheme"><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select></div>
+  <p id="stError" class="err" role="alert"></p>
+  <div class="row"><button type="button" class="btn" id="stSave">Save &amp; reconnect</button></div>
+  <hr>
+  <div class="row"><button type="button" class="btn" id="stClear">Clear chats</button><button type="button" class="btn danger" id="stUnpair">Disconnect phone</button></div>
+  <p class="muted small" id="stVersion"></p>
+</dialog>
 
-    <div id="stream" role="log" aria-live="polite" aria-label="Live activity"></div>
+<dialog id="shotDlg" aria-labelledby="shTitle">
+  <div class="dlg-head"><h2 id="shTitle">What Nyro sees</h2><button type="button" class="icon-btn" id="shClose" aria-label="Close"><svg class="ic"><use href="#i-close"/></svg></button></div>
+  <p id="shEmpty" class="muted">No screenshot yet. Ask Nyro to help with something on your screen.</p>
+  <img id="shotImg" alt="Latest screenshot from your laptop" hidden>
+</dialog>
 
-    <div class="chips" id="chips">
-      <button type="button" data-say="Help me here">Help me here</button>
-      <button type="button" data-say="Explain this slide">Explain slide</button>
-      <button type="button" data-say="Mute">Mute</button>
-      <button type="button" data-say="Battery">Battery</button>
-      <button type="button" data-say="Clear the overlay">Clear</button>
-    </div>
-  </main>
+<dialog id="approval" aria-labelledby="apTitle">
+  <div class="ap-icon"><svg class="ic xl"><use href="#i-shield"/></svg></div>
+  <h2 id="apTitle">Approve this action?</h2>
+  <p id="apSummary"></p>
+  <p class="muted small"><code id="apAction"></code> · <span id="apTimer"></span></p>
+  <div class="ap-bar"><b id="apBar"></b></div>
+  <div class="row"><button type="button" id="apReject" class="btn danger">Reject</button><button type="button" id="apApprove" class="btn primary">Approve</button></div>
+</dialog>
 
-  <footer id="dock" hidden>
-    <div class="langs" role="group" aria-label="Voice language">
-      <button type="button" id="langEn" aria-pressed="true">EN</button>
-      <button type="button" id="langUr" aria-pressed="false">اردو</button>
-    </div>
-    <form id="sayForm" autocomplete="off">
-      <input id="say" type="text" dir="auto" maxlength="500" placeholder="Type a command" aria-label="Command">
-      <button class="primary" type="submit" aria-label="Send">Send</button>
-    </form>
-    <button type="button" id="mic" aria-label="Hold to talk" title="Hold to talk">
-      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor"
-        d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12h-2Z"/></svg>
-    </button>
-  </footer>
-
-  <dialog id="approval" aria-labelledby="apTitle">
-    <h2 id="apTitle">Approve this action?</h2>
-    <p id="apSummary"></p>
-    <p class="muted"><code id="apAction"></code> · <span id="apTimer"></span></p>
-    <div class="row">
-      <button type="button" id="apReject" class="danger">Reject</button>
-      <button type="button" id="apApprove" class="primary">Approve</button>
-    </div>
-  </dialog>
-
-  <script src="app.js" defer></script>
+<script src="nyro-lib.js"></script>
+<script src="nyro-md.js"></script>
+<script src="nyro-speech.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

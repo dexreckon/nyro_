@@ -9,3 +9,4 @@ nyro_data/
 tests/e2e/last_run.png
 models/*.onnx
 .venv/
+tests/e2e/shots/

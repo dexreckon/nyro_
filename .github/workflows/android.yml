@@ -1,0 +1,79 @@
+name: Android APK
+
+on:
+  push:
+    paths: ["mobile/**", "pwa/**", "tests/js/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # to publish the APK as a release asset
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      NYRO_VERSION_CODE: ${{ github.run_number }}
+      NYRO_VERSION_NAME: 1.0.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: UI unit tests
+        run: node --test tests/js/lib.test.js
+
+      - name: Build web bundle and sync native project
+        working-directory: mobile
+        run: |
+          npm ci
+          npm run sync
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build release APK
+        working-directory: mobile/android
+        run: ./gradlew --no-daemon --stacktrace assembleRelease
+
+      - name: Verify APK (signature + manifest)
+        run: |
+          APK=mobile/android/app/build/outputs/apk/release/app-release.apk
+          BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          "$BT/apksigner" verify --print-certs "$APK" | head -3
+          "$BT/aapt2" dump badging "$APK" | grep -E "^package:|sdkVersion|uses-permission" | head -12
+          cp "$APK" nyro.apk
+          ls -l nyro.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nyro-apk
+          path: nyro.apk
+          if-no-files-found: error
+
+      - name: Publish rolling release (latest build)
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nyro-android-latest
+          name: Nyro Android (latest build)
+          body: |
+            Sideload build ${{ env.NYRO_VERSION_NAME }} from commit ${{ github.sha }}.
+            Download `nyro.apk` below and open it on your phone (allow "install unknown apps" for your browser/Files app once).
+          files: nyro.apk
+          prerelease: true
+          target_commitish: ${{ github.sha }}

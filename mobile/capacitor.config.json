@@ -1,0 +1,11 @@
+{
+  "appId": "com.nyro.remote",
+  "appName": "Nyro",
+  "webDir": "www",
+  "backgroundColor": "#212121",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false,
+    "adjustMarginsForEdgeToEdge": "force"
+  }
+}

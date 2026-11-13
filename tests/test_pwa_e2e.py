@@ -32,9 +32,10 @@ class PwaE2E(unittest.TestCase):
                 time.sleep(0.02)
             port = srv.servers[0].sockets[0].getsockname()[1]
             try:
-                r = subprocess.run(["node", str(ROOT / "tests/e2e/pwa_e2e.js"), str(port), TOKEN],
-                                   capture_output=True, text=True, timeout=90, cwd=str(ROOT),
-                                   env={**os.environ, "SHOT": str(ROOT / "tests/e2e/last_run.png")})
+                shots = ROOT / "tests/e2e/shots"
+                shots.mkdir(exist_ok=True)
+                r = subprocess.run(["node", str(ROOT / "tests/e2e/pwa_e2e.js"), str(port), TOKEN, str(ROOT / "pwa"), str(shots)],
+                                   capture_output=True, text=True, timeout=150, cwd=str(ROOT), env=os.environ)
             finally:
                 srv.should_exit = True; t.join(5)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
