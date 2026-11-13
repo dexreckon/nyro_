@@ -58,9 +58,12 @@ class StdioTests(unittest.TestCase):
 
     def test_tool_lists(self):
         want = {
-            "host.mcp_servers.fileclerk_mcp": ["list_allowed_files", "read_document", "soft_delete_file", "write_markdown"],
-            "host.mcp_servers.sysop_mcp": ["get_system_telemetry", "lock_workstation", "manage_window",
-                                           "set_brightness", "set_volume", "toggle_mute"],
+            "host.mcp_servers.fileclerk_mcp": ["list_allowed_files", "open_path", "read_document", "soft_delete_file",
+                                                  "write_docx", "write_markdown"],
+            "host.mcp_servers.desktopctl_mcp": ["capture_screen", "click", "press_keys", "release_control",
+                                                "request_control", "scroll", "type_text"],
+            "host.mcp_servers.sysop_mcp": ["close_tab", "get_system_telemetry", "lock_workstation", "manage_window",
+                                           "open_target", "set_brightness", "set_volume", "toggle_mute"],
             "host.mcp_servers.screencoach_mcp": ["capture_foreground_window", "clear_annotations", "render_screen_annotations"],
             "host.mcp_servers.webpilot_mcp": ["capture_tab_screenshot", "click_element", "extract_dom_text", "open_url", "type_text"],
         }

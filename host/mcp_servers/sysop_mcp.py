@@ -45,6 +45,23 @@ def manage_window(app_name: str, action: str) -> str:
 
 
 @mcp.tool()
+def close_tab(target: str = "") -> str:
+    """Close a browser tab (Ctrl+W on a real browser window). target: text in the tab's title, e.g. 'youtube'.
+    Leave empty to close the current tab. Cycles through tabs to find a match."""
+    return _run("close_tab", {"target": target}, lambda: S.close_tab(target or None))
+
+
+@mcp.tool()
+def open_target(target: str, browser: str = "", query: str = "") -> str:
+    """Open a website or app. target: youtube, google, gmail, whatsapp, facebook, instagram, github, linkedin,
+    netflix, reddit, wikipedia, maps, claude, chatgpt, twitter, amazon, drive, or an app: chrome, edge, firefox,
+    brave, notepad, calculator, paint, explorer, word, excel, powerpoint. browser (optional): chrome, edge,
+    firefox, brave. query (optional): search text, only for youtube or google."""
+    return _run("open_target", {"target": target, "browser": browser, "query": query},
+                lambda: S.open_target(target, browser or None, query or None))
+
+
+@mcp.tool()
 def lock_workstation() -> str:
     """Lock the Windows session."""
     return _run("lock_workstation", {}, S.lock_workstation)

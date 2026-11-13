@@ -12,11 +12,13 @@ REPLIES = {
     "en": {"set_volume": "Volume {level} percent.", "change_volume": "Volume adjusted.", "toggle_mute": "Done.",
            "set_brightness": "Brightness {level} percent.", "change_brightness": "Brightness adjusted.",
            "lock_workstation": "Locking.", "manage_window": "Done.", "clear_annotations": "Cleared.",
+           "open_target": "Opening {name}.", "close_tab": "Closed {name}.",
            "failed": "Sorry, that did not work: {err}",
            "limit": "The daily AI limit is reached. Local controls still work."},
     "ur": {"set_volume": "آواز {level} فیصد۔", "change_volume": "آواز تبدیل ہو گئی۔", "toggle_mute": "ہو گیا۔",
            "set_brightness": "روشنی {level} فیصد۔", "change_brightness": "روشنی تبدیل ہو گئی۔",
            "lock_workstation": "لاک کر رہا ہوں۔", "manage_window": "ہو گیا۔", "clear_annotations": "صاف ہو گیا۔",
+           "open_target": "{name} کھول رہا ہوں۔", "close_tab": "{name} بند کر دیا۔",
            "failed": "معذرت، یہ نہیں ہو سکا: {err}",
            "limit": "آج کی AI حد پوری ہو گئی ہے۔ مقامی کنٹرول اب بھی کام کرتے ہیں۔"},
 }
@@ -50,6 +52,8 @@ _ACTIONS: dict[str, Callable[..., str]] = {
     "lock_workstation": lambda p: S.lock_workstation(),
     "manage_window": lambda p: S.manage_window(p["app_name"], p["action"]),
     "clear_annotations": _clear_overlay,
+    "open_target": lambda p: S.open_target(p["target"], p.get("browser"), p.get("query")),
+    "close_tab": lambda p: S.close_tab(p.get("target")),
 }
 
 
@@ -64,7 +68,10 @@ def execute(intent: Intent, cfg: dict[str, Any]) -> str:
         if action == "get_system_telemetry":
             return _telemetry_text(lang)
         fn = _ACTIONS[action]
-        fn(intent.params)
-        return msg(lang, action, **{k: v for k, v in intent.params.items() if k == "level"})
+        out = fn(intent.params)
+        kw = {k: v for k, v in intent.params.items() if k == "level"}
+        if action in ("open_target", "close_tab"):
+            kw["name"] = out
+        return msg(lang, action, **kw)
     except Exception as e:
         return msg(lang, "failed", err=str(e)[:120])

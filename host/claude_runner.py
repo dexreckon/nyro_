@@ -22,9 +22,23 @@ class RunResult:
     rate_limit: dict[str, Any] | None = None
 
 
+def resolve_cli(name: str) -> str:
+    """Windows can't Popen an npm `.cmd` shim without a shell: find the real claude.exe instead."""
+    import os
+    import shutil
+    found = shutil.which(name)
+    if not found:
+        return name
+    if found.lower().endswith((".cmd", ".bat", ".ps1")):
+        real = os.path.join(os.path.dirname(found), "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe")
+        if os.path.exists(real):
+            return real
+    return found
+
+
 def build_argv(persona: Persona, mcp_config_path: str, cfg: dict[str, Any], resume: str | None = None) -> list[str]:
     c = cfg["claude"]
-    argv = [c.get("cli", "claude"), "-p",
+    argv = [resolve_cli(c.get("cli", "claude")), "-p",
             "--model", cfg["model"], "--effort", cfg["effort"],
             "--system-prompt", persona.prompt,           # replaces the huge default prompt (token saver)
             "--tools", "",                               # no built-in tools: no Bash, Read, Write...

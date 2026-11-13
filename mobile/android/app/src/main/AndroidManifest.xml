@@ -41,6 +41,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- RECORD_AUDIO is added by the speech-recognition plugin; the app works without a microphone -->
+    <!-- Voice: the web view records the microphone (getUserMedia) and the laptop transcribes it.
+         The app still works without a microphone. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 </manifest>

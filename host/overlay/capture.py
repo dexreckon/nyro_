@@ -19,6 +19,21 @@ def foreground_window_rect() -> tuple[int, int, int, int]:
     hwnd = user32.GetForegroundWindow()
     if not hwnd:
         raise RuntimeError("No foreground window")
+
+    def title(h) -> str:
+        buf = ctypes.create_unicode_buffer(256)
+        user32.GetWindowTextW(h, buf, 256)
+        return buf.value
+
+    # If the user typed the request in the Nyro window itself, explain the window behind it (next in Z-order).
+    GW_HWNDNEXT = 2
+    for _ in range(40):
+        t = title(hwnd).strip().lower()
+        if t and t != "nyro" and user32.IsWindowVisible(hwnd) and not user32.IsIconic(hwnd):
+            break
+        hwnd = user32.GetWindow(hwnd, GW_HWNDNEXT)
+        if not hwnd:
+            raise RuntimeError("No window to capture")
     r = wintypes.RECT()
     user32.GetWindowRect(hwnd, ctypes.byref(r))
     return r.left, r.top, r.right - r.left, r.bottom - r.top

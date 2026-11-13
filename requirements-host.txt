@@ -21,3 +21,7 @@ pywin32>=306; sys_platform == "win32"
 pycaw>=20230407; sys_platform == "win32"
 screen_brightness_control>=0.20; sys_platform == "win32"
 playwright>=1.40
+
+# Documents (PDF read, Word write)
+pypdf>=4
+python-docx>=1.1

@@ -10,3 +10,8 @@ tests/e2e/last_run.png
 models/*.onnx
 .venv/
 tests/e2e/shots/
+
+# local-only
+.token
+tools/
+window_profile/

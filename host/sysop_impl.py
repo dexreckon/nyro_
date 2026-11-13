@@ -36,6 +36,8 @@ def _endpoint():
     from comtypes import CLSCTX_ALL
     from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
     dev = AudioUtilities.GetSpeakers()
+    if hasattr(dev, "EndpointVolume"):  # newer pycaw returns an AudioDevice wrapper
+        return dev.EndpointVolume
     iface = dev.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     return cast(iface, POINTER(IAudioEndpointVolume))
 
@@ -73,6 +75,138 @@ def toggle_mute() -> str:
     new = not bool(ep.GetMute())
     ep.SetMute(int(new), None)
     return "Muted" if new else "Unmuted"
+
+
+SITES = {
+    "youtube": "https://www.youtube.com", "google": "https://www.google.com", "gmail": "https://mail.google.com",
+    "whatsapp": "https://web.whatsapp.com", "facebook": "https://www.facebook.com",
+    "instagram": "https://www.instagram.com", "github": "https://github.com", "linkedin": "https://www.linkedin.com",
+    "netflix": "https://www.netflix.com", "reddit": "https://www.reddit.com", "wikipedia": "https://www.wikipedia.org",
+    "maps": "https://maps.google.com", "claude": "https://claude.ai", "chatgpt": "https://chatgpt.com",
+    "twitter": "https://x.com", "amazon": "https://www.amazon.com", "drive": "https://drive.google.com",
+}
+BROWSERS = {"chrome": "chrome", "edge": "msedge", "firefox": "firefox", "brave": "brave"}
+APPS = {"notepad": "notepad", "calculator": "calc", "paint": "mspaint", "explorer": "explorer",
+        "word": "winword", "excel": "excel", "powerpoint": "powerpnt"}
+_SEARCH = {"youtube": "https://www.youtube.com/results?search_query=", "google": "https://www.google.com/search?q="}
+
+
+def open_target(target: str, browser: str | None = None, query: str | None = None) -> str:
+    """Open a whitelisted site/app. Sites open in `browser` (chrome/edge/firefox/brave) or the default one.
+    Never runs arbitrary commands: only names in SITES / APPS / BROWSERS are accepted."""
+    _need_windows()
+    import ctypes
+    from urllib.parse import quote_plus
+    target = (target or "").lower().strip()
+    if browser and browser not in BROWSERS:
+        raise ValueError(f"unknown browser '{browser}'")
+    if target in SITES:
+        url = SITES[target]
+        if query:
+            if target not in _SEARCH:
+                raise ValueError(f"cannot search on {target}")
+            url = _SEARCH[target] + quote_plus(query[:200])
+        exe = BROWSERS[browser] if browser else None
+        r = ctypes.windll.shell32.ShellExecuteW(None, "open", exe or url, url if exe else None, None, 1)
+        if r <= 32:
+            raise RuntimeError(f"could not open {browser or 'the default browser'} (code {r})")
+        return f"{target} in {browser}" if browser else target
+    if target in BROWSERS or target in APPS:
+        exe = BROWSERS.get(target) or APPS[target]
+        r = ctypes.windll.shell32.ShellExecuteW(None, "open", exe, None, None, 1)
+        if r <= 32:
+            raise RuntimeError(f"{target} is not installed or could not start (code {r})")
+        return target
+    raise ValueError(f"'{target}' is not in the allowed list")
+
+
+_BROWSER_EXES = {"chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "vivaldi.exe"}
+
+
+def _tap_keys(*vks: int) -> None:
+    """Press the given virtual keys together (e.g. Ctrl+W), then release in reverse order."""
+    import ctypes
+    import time
+    u = ctypes.windll.user32
+    for vk in vks:
+        u.keybd_event(vk, 0, 0, 0)
+    time.sleep(0.03)
+    for vk in reversed(vks):
+        u.keybd_event(vk, 0, 2, 0)
+
+
+def close_tab(target: str | None = None) -> str:
+    """Close a browser tab with Ctrl+W. target = text in the tab's title (e.g. 'youtube'); None = the current tab.
+    Only ever acts on real browser windows. Looks at the active tab of each browser window first, then cycles
+    through one window's tabs (Ctrl+Tab, bounded) to find a match."""
+    _need_windows()
+    import time
+
+    import psutil
+    import win32gui  # type: ignore
+    import win32process  # type: ignore
+
+    VK_CTRL, VK_TAB, VK_W, VK_ALT = 0x11, 0x09, 0x57, 0x12
+
+    def is_browser(h) -> bool:
+        try:
+            _, pid = win32process.GetWindowThreadProcessId(h)
+            return psutil.Process(pid).name().lower() in _BROWSER_EXES
+        except Exception:
+            return False
+
+    def title(h) -> str:
+        return win32gui.GetWindowText(h)
+
+    windows: list[int] = []  # top-to-bottom z-order
+
+    def cb(h, _):
+        t = title(h).strip()
+        if win32gui.IsWindowVisible(h) and t and t.lower() != "nyro" and is_browser(h):
+            windows.append(h)
+
+    win32gui.EnumWindows(cb, None)
+    if not windows:
+        raise LookupError("No browser window is open")
+
+    def focus(h) -> None:
+        import ctypes
+        win32gui.ShowWindow(h, 9)  # SW_RESTORE
+        ctypes.windll.user32.keybd_event(VK_ALT, 0, 0, 0)  # lets SetForegroundWindow through the foreground lock
+        ctypes.windll.user32.keybd_event(VK_ALT, 0, 2, 0)
+        win32gui.SetForegroundWindow(h)
+        time.sleep(0.2)
+        if win32gui.GetForegroundWindow() != h:
+            raise RuntimeError("Windows would not let me switch to the browser")
+
+    needle = (target or "").lower().strip()
+    if not needle:
+        h = windows[0]
+        focus(h)
+        name = title(h)
+        _tap_keys(VK_CTRL, VK_W)
+        return f"the current tab ({name[:40]})"
+
+    for h in windows:  # 1) a window whose ACTIVE tab matches
+        if needle in title(h).lower():
+            focus(h)
+            name = title(h)
+            _tap_keys(VK_CTRL, VK_W)
+            return f"the '{name[:40]}' tab"
+
+    for h in windows[:2]:  # 2) cycle through that window's tabs (returns to the start if nothing matches)
+        focus(h)
+        start = title(h)
+        for _ in range(40):
+            _tap_keys(VK_CTRL, VK_TAB)
+            time.sleep(0.15)
+            now = title(win32gui.GetForegroundWindow())
+            if needle in now.lower():
+                _tap_keys(VK_CTRL, VK_W)
+                return f"the '{now[:40]}' tab"
+            if now == start:
+                break
+    raise LookupError(f"I couldn't find a browser tab with '{needle}' in its title")
 
 
 def lock_workstation() -> str:

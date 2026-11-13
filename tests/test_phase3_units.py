@@ -34,7 +34,8 @@ class FileClerkTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_list(self):
-        self.assertEqual(F.list_allowed_files(self.jail), ["n.md", "sub/c.cpp"])
+        # newest-first now (so a fresh download is found first); compare as a set of names
+        self.assertEqual(sorted(F.list_allowed_files(self.jail)), ["n.md", "sub/c.cpp"])
 
     def test_read_and_types(self):
         self.assertEqual(F.read_document(self.jail, "n.md"), "hello")

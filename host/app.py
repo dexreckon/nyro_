@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -24,7 +25,14 @@ class NyroApp:
                  record_and_transcribe: Callable[[], tuple[str, str]] | None = None,
                  speak: Callable[[str], Any] | None = None,
                  send_phone: Callable[[dict], None] | None = None,
-                 beep: Callable[[], None] | None = None):
+                 beep: Callable[[], None] | None = None,
+                 notify: Callable[[str, str], None] | None = None,
+                 island: Any = None,
+                 transcribe_bytes: Callable[[bytes, str | None], tuple[str, str]] | None = None):
+        self._tb = transcribe_bytes
+        from host.overlay.island_client import NullIsland
+        self._island = island or NullIsland()   # Dynamic Island status pill (no-op in tests)
+        self._notify = notify or (lambda title, msg: None)
         self.cfg, self.data_dir, self.orch = cfg, data_dir, orchestrator
         self._rt = record_and_transcribe
         self._speak = speak or (lambda t: None)
@@ -50,32 +58,55 @@ class NyroApp:
             pass
 
     # -- the pipeline
-    def process_text(self, text: str, lang: str | None = None) -> Reply | None:
+    def process_text(self, text: str, lang: str | None = None, ui: bool = False) -> Reply | None:
+        """`ui=True` (voice/hotkey requests) also drives the Dynamic Island."""
         if not self._busy.acquire(blocking=False):
             return None  # already handling a request; ignore double triggers
+        shown = False
         try:
             self._phone({"type": "heard", "text": text})
+            if ui:
+                self._island.state("thinking", text)
+            started = time.monotonic()
             reply = self.orch.handle(text, lang)
             self.last_reply = reply
+            if ui:
+                self._island.state("error" if reply.source in ("error", "limit") else "done", reply.text)
+                shown = True
+            if reply.text and reply.source in ("llm", "error") and time.monotonic() - started > 15:
+                try:  # long job (documents, desktop control): tell the user even if they looked away
+                    self._notify("Nyro: done" if reply.source == "llm" else "Nyro: problem", reply.text[:240])
+                except Exception:
+                    pass
             self._phone({"type": "reply", "text": reply.text, "source": reply.source,
                          "persona": reply.persona, "budget": reply.budget})
             if reply.text:
                 self._speak(reply.text)
             return reply
         finally:
+            if ui and not shown:   # the request crashed: never leave the island stuck on "thinking"
+                self._island.state("error", "Something went wrong")
             self._busy.release()
 
     def listen_once(self) -> Reply | None:
-        """Wake word / hotkey / tray: beep, record, transcribe, handle."""
+        """Wake word / hotkey / tray: island opens, beep, record, transcribe, handle."""
         if self._busy.locked() or self._rt is None:
             return None
+        self._island.state("listening")      # first thing: instant visual feedback
         self._beep()
         self._phone({"type": "listening"})
-        text, lang = self._rt()
-        if not text:
+        try:
+            text, lang = self._rt()
+        except Exception as e:
+            print(f"[wake] recording failed: {e}", flush=True)
+            self._island.state("error", "Microphone problem")
             self._phone({"type": "idle"})
             return None
-        return self.process_text(text, lang)
+        if not text:
+            self._island.state("hide")
+            self._phone({"type": "idle"})
+            return None
+        return self.process_text(text, lang, ui=True)
 
     # -- phone messages
     def on_phone_message(self, msg: dict, broker: ApprovalBroker | None = None) -> None:
@@ -87,9 +118,52 @@ class NyroApp:
                 broker.resolve(int(msg["id"]), bool(msg.get("approved")))
             except (KeyError, TypeError, ValueError):
                 pass
+        elif t == "audio" and isinstance(msg.get("b64"), str):
+            threading.Thread(target=self._phone_audio, args=(msg,), daemon=True).start()
         elif t == "sync":
             s = self.orch.budget.status()
             self._phone({"type": "event", "event": "budget", "used": s.used, "cap": s.cap})
+
+    MAX_AUDIO_BYTES = 300_000
+
+    def _phone_audio(self, msg: dict) -> None:
+        """Voice recorded on the phone: transcribe it here with Whisper and send the text back.
+        The phone then sends it as a normal command (so it goes through the same router, budget and firewall)."""
+        rid, lang = msg.get("rid"), msg.get("lang")
+        if self._tb is None:
+            self._phone({"type": "transcript", "rid": rid, "text": "", "error": "Voice is not available on the laptop"})
+            return
+        try:
+            data = base64.b64decode(msg["b64"], validate=True)
+            if len(data) > self.MAX_AUDIO_BYTES:
+                raise ValueError("recording too long")
+            text, detected = self._tb(data, lang if lang in ("en", "ur") else None)
+            self._phone({"type": "transcript", "rid": rid, "text": text, "lang": detected})
+        except Exception as e:
+            print(f"[phone-voice] failed: {e}", flush=True)
+            self._phone({"type": "transcript", "rid": rid, "text": "", "error": "Could not understand the recording"})
+
+
+def relay_http_url(cfg: dict[str, Any]) -> str:
+    """ws://host:port/ws/host -> http://host:port"""
+    u = cfg["relay"]["url"].replace("wss://", "https://", 1).replace("ws://", "http://", 1)
+    return u.split("/ws/")[0].rstrip("/")
+
+
+def open_window(cfg: dict[str, Any], data_dir: Path) -> None:  # pragma: no cover - needs a desktop
+    """Open the chat UI as a standalone app window (Edge/Chrome --app mode, own profile so login persists)."""
+    candidates = []
+    for base in (os.environ.get("ProgramFiles(x86)"), os.environ.get("ProgramFiles"), os.environ.get("LOCALAPPDATA")):
+        if base:
+            candidates += [Path(base) / "Microsoft/Edge/Application/msedge.exe",
+                           Path(base) / "Google/Chrome/Application/chrome.exe"]
+    exe = next((p for p in candidates if p.exists()), None)
+    if exe is None:
+        import webbrowser
+        webbrowser.open(relay_http_url(cfg))
+        return
+    subprocess.Popen([str(exe), f"--app={relay_http_url(cfg)}", f"--user-data-dir={data_dir / 'window_profile'}",
+                      "--window-size=460,780", "--no-first-run", "--no-default-browser-check"])
 
 
 def main() -> int:  # pragma: no cover - needs Windows desktop + hardware
@@ -107,17 +181,35 @@ def main() -> int:  # pragma: no cover - needs Windows desktop + hardware
     relay = RelayClient(cfg["relay"]["url"], token_from_env(cfg), lambda m: holder["app"].on_phone_message(m, holder["broker"]))
     orch = Orchestrator(cfg, budget, data_dir, lambda e: holder["app"].on_event(e))
     transcriber, recorder = stt.Transcriber(cfg["voice"]["stt_model"]), stt.Recorder()
+
+    from host.overlay.island_client import IslandClient
+    isl_cfg = {"enabled": True, "port": 8767, **(cfg.get("island") or {})}
+    island = IslandClient(int(isl_cfg["port"]), bool(isl_cfg["enabled"]))
+
+    def record_and_transcribe() -> tuple[str, str]:
+        # mic level -> island waveform; (rms / 0.05) ** 0.6 maps normal speech to roughly 0.3-1.0
+        audio = recorder.record(on_level=lambda rms: island.level(min(1.0, (rms / 0.05) ** 0.6)))
+        island.state("thinking")             # transcribing
+        return transcriber.transcribe(audio)
+
     app = NyroApp(cfg, data_dir, orch,
-                  record_and_transcribe=lambda: transcriber.transcribe(recorder.record()),
+                  record_and_transcribe=record_and_transcribe,
+                  transcribe_bytes=transcriber.transcribe_bytes,
+                  island=island,
                   speak=lambda t: tts.speak(t, cfg["voice"]["voices"]),
                   send_phone=relay.send,
-                  beep=lambda: __import__("winsound").Beep(880, 120))
+                  beep=lambda: __import__("winsound").Beep(880, 120),
+                  notify=lambda title, msg: holder["icon"].notify(msg, title) if holder.get("icon") else None)
     broker = ApprovalBroker(lambda p: relay.send({"type": "approval_request", "id": p.id, "action": p.action,
                                                   "summary": p.summary}),
                             cfg["approval"]["host"], cfg["approval"]["port"])
     holder.update(app=app, broker=broker)
     broker.start()
     overlay = subprocess.Popen([sys.executable, "-m", "host.overlay.screen_canvas"], cwd=str(ROOT))
+    island_proc = None
+    if isl_cfg["enabled"]:
+        island_proc = subprocess.Popen([sys.executable, "-m", "host.overlay.island"], cwd=str(ROOT),
+                                       env={**os.environ, "NYRO_ISLAND_PORT": str(isl_cfg["port"])})
     if token_from_env(cfg):
         relay.start()
     else:
@@ -136,20 +228,49 @@ def main() -> int:  # pragma: no cover - needs Windows desktop + hardware
         s = budget.status()
         return f"AI requests: {s.label()}" + (" (limit reached, local controls only)" if s.exhausted else "")
 
+    show = lambda: open_window(cfg, data_dir)  # noqa: E731
     menu = pystray.Menu(
+        pystray.MenuItem("Open Nyro", show, default=True),  # double-click the tray icon
         pystray.MenuItem(label, None, enabled=False),
         pystray.MenuItem("Listen now", lambda: threading.Thread(target=app.listen_once, daemon=True).start()),
+        pystray.MenuItem("Stop mouse/keyboard control (Ctrl+Shift+Q)",
+                         lambda: (data_dir / "control_grant.json").unlink(missing_ok=True)),
         pystray.MenuItem("Allow +100 requests today", lambda: budget.override_today(100)),
         pystray.MenuItem("Open data folder", lambda: os.startfile(str(data_dir))),  # type: ignore[attr-defined]
         pystray.MenuItem("Quit", lambda icon: icon.stop()),
     )
     icon = pystray.Icon("Nyro", img, "Nyro", menu)
+    holder["icon"] = icon
+
+    # Kill switch for mouse/keyboard control: Ctrl+Shift+Q revokes any active grant immediately.
+    from host.desktopctl_impl import GRANT_FILE
+
+    def stop_control() -> None:
+        (data_dir / GRANT_FILE).unlink(missing_ok=True)
+        try:
+            __import__("winsound").Beep(440, 200)
+        except Exception:
+            pass
+        print("[control] mouse/keyboard control revoked", flush=True)
+
+    try:
+        from pynput import keyboard as _kb
+        _kill = _kb.GlobalHotKeys({"<ctrl>+<shift>+q": stop_control})
+        _kill.daemon = True
+        _kill.start()
+    except Exception as e:
+        print(f"[control] kill hotkey unavailable: {e}")
+    print("[nyro] running. Hotkey:", cfg["wake_word"]["hotkey"], flush=True)
+    if os.environ.get("NYRO_NO_WINDOW") != "1":
+        show()
     try:
         icon.run()
     finally:
         broker.stop()
         relay.stop()
         overlay.terminate()
+        if island_proc:
+            island_proc.terminate()
     return 0
 
 

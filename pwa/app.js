@@ -168,6 +168,19 @@
   /* ------------------------------------------------------------ socket */
   const send = (o) => { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(o)); return true; } return false; };
 
+  /* Voice recorded on the phone is transcribed by the laptop (Whisper). Replies arrive as {type:"transcript", rid}. */
+  const pendingTx = {};
+  let txId = 1;
+  function transcribeOnLaptop(b64, mime) {
+    return new Promise((resolve, reject) => {
+      if (connState !== "online" || !hostOnline) { reject(new Error("Your laptop is offline.")); return; }
+      const rid = txId++;
+      const timer = setTimeout(() => { delete pendingTx[rid]; reject(new Error("The laptop took too long to transcribe. Try again.")); }, 90000);
+      pendingTx[rid] = { resolve, reject, timer };
+      if (!send({ type: "audio", b64, mime, rid, lang })) { clearTimeout(timer); delete pendingTx[rid]; reject(new Error("Not connected.")); }
+    });
+  }
+
   function connect() {
     clearTimeout(retryT);
     const token = store.get("nyro_token"), origin = serverOrigin();
@@ -204,6 +217,12 @@
         const i = pendingHeard.indexOf(m.text);
         if (i >= 0) pendingHeard.splice(i, 1); else addMsg({ role: "user", text: String(m.text || ""), voice: true });
         curAi = null; break;
+      }
+      case "transcript": {
+        const p = pendingTx[m.rid]; if (!p) break;
+        clearTimeout(p.timer); delete pendingTx[m.rid];
+        if (m.error) p.reject(new Error(String(m.error))); else p.resolve(String(m.text || ""));
+        break;
       }
       case "screenshot": showShot(m.b64, m.mime); break;
       case "approval_request": queueApproval(m); break;
@@ -284,6 +303,22 @@
   }
   $("btnMic").addEventListener("click", async () => {
     if (listening) { SP.stop(); return; }
+    // In the Android app (and browsers without speech recognition) record here and let the laptop transcribe.
+    if (SP.canRecord() && (SP.isNative || !(await SP.available()))) {
+      if (connState !== "online" || !hostOnline) { note("Voice needs your laptop to be online.", "warn"); return; }
+      micUi(true);
+      SP.startRecording({
+        transcribe: transcribeOnLaptop,
+        onTranscribing: () => { input.placeholder = "Transcribing on your laptop…"; },
+        onEnd: (t) => {
+          micUi(false); const v = (t || "").trim();
+          if (!v) { note("I didn't catch that. Tap the mic and try again.", "warn"); return; }
+          if (sendText(v)) { input.value = ""; autosize(); refreshSend(); } else { input.value = v; autosize(); refreshSend(); }
+        },
+        onError: (msg) => { micUi(false); note(msg, "err"); },
+      });
+      return;
+    }
     if (!(await SP.available())) { note("Voice input isn't available on this device. You can still type.", "warn"); return; }
     micUi(true);
     SP.start({

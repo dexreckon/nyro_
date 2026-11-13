@@ -1,6 +1,8 @@
 """Local speech-to-text (faster-whisper) for English + Urdu, with simple silence endpointing."""
 from __future__ import annotations
 
+import io
+import threading
 from typing import Any, Iterable
 
 import numpy as np
@@ -65,16 +67,24 @@ class Recorder:
     def __init__(self, max_seconds: float = 15.0, sr: int = SAMPLE_RATE):
         self.max_seconds, self.sr = max_seconds, sr
 
-    def record(self) -> np.ndarray:
+    def record(self, on_level=None) -> np.ndarray:
+        """Record until the speaker stops. `on_level(rms)` is called ~20x/second (drives the Dynamic Island)."""
         import sounddevice as sd
         chunks: list[np.ndarray] = []
-        block = int(self.sr * 0.1)
+        block = int(self.sr * 0.05)
         with sd.InputStream(samplerate=self.sr, channels=1, dtype="float32", blocksize=block) as stream:
             total = 0
             while total < self.max_seconds * self.sr:
                 data, _ = stream.read(block)
                 chunks.append(data[:, 0].copy())
                 total += len(data)
+                if on_level is not None:
+                    try:
+                        on_level(float(np.sqrt(np.mean(np.square(data[:, 0])))))
+                    except Exception:
+                        pass
+                if len(chunks) % 2:      # endpoint check every 100 ms is plenty
+                    continue
                 audio = np.concatenate(chunks)
                 end, spoke = endpoint(audio, self.sr)
                 if spoke and end < len(audio):
@@ -88,6 +98,7 @@ class Transcriber:
     def __init__(self, model_size: str = "small"):
         self.model_size = model_size
         self._model: Any = None
+        self._lock = threading.Lock()   # hotkey and phone requests may arrive together; the model is not thread-safe
 
     def _load(self):
         if self._model is None:
@@ -95,13 +106,29 @@ class Transcriber:
             self._model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
         return self._model
 
+    def _run(self, make_source, hint: str | None = None) -> tuple[str, str]:
+        """make_source() returns a fresh audio source each call (array or file-like), so we can retry."""
+        with self._lock:
+            model = self._load()
+            if hint in ALLOWED_LANGS:   # the phone told us which language the user picked
+                segs, info = model.transcribe(make_source(), language=hint, beam_size=1, vad_filter=True,
+                                              condition_on_previous_text=False)
+                return " ".join(s.text.strip() for s in segs).strip(), hint
+            segs, info = model.transcribe(make_source(), language=None, beam_size=1,
+                                          vad_filter=True, condition_on_previous_text=False)
+            lang = pick_language(getattr(info, "all_language_probs", None), info.language)
+            if lang != info.language:  # detected something else: redo in the best allowed language
+                segs, info = model.transcribe(make_source(), language=lang, beam_size=1, vad_filter=True)
+            return " ".join(s.text.strip() for s in segs).strip(), lang
+
     def transcribe(self, audio: np.ndarray) -> tuple[str, str]:
         if len(audio) < SAMPLE_RATE * 0.25:
             return "", "en"
-        model = self._load()
-        segs, info = model.transcribe(audio.astype(np.float32), language=None, beam_size=1,
-                                      vad_filter=True, condition_on_previous_text=False)
-        lang = pick_language(getattr(info, "all_language_probs", None), info.language)
-        if lang != info.language:  # detected something else: redo in the best allowed language
-            segs, info = model.transcribe(audio.astype(np.float32), language=lang, beam_size=1, vad_filter=True)
-        return " ".join(s.text.strip() for s in segs).strip(), lang
+        arr = audio.astype(np.float32)
+        return self._run(lambda: arr)
+
+    def transcribe_bytes(self, data: bytes, hint: str | None = None) -> tuple[str, str]:
+        """Transcribe an encoded recording (webm/opus, mp4/aac, wav...) uploaded from the phone."""
+        if len(data) < 500:
+            return "", hint or "en"
+        return self._run(lambda: io.BytesIO(data), hint)

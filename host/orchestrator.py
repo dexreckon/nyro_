@@ -46,6 +46,17 @@ class Orchestrator:
             self._mcp_files[persona] = write_mcp_config(PERSONAS[persona], self._mcp_dir, self.config_path, env)
         return str(self._mcp_files[persona])
 
+    def _effective_cfg(self, persona: str) -> tuple[dict[str, Any], float]:
+        """Apply cfg['persona_overrides'][persona] (model/effort/max_turns/timeout_seconds) on top of the defaults.
+        Heavy personas (documents, desktop control) get a stronger model and longer limits."""
+        ov = (self.cfg.get("persona_overrides") or {}).get(persona) or {}
+        eff = dict(self.cfg)
+        for k in ("model", "effort"):
+            if k in ov:
+                eff[k] = ov[k]
+        eff["claude"] = {**self.cfg["claude"], **({"max_turns": ov["max_turns"]} if "max_turns" in ov else {})}
+        return eff, float(ov.get("timeout_seconds", self.cfg["claude"]["timeout_seconds"]))
+
     def _emit_budget(self) -> str:
         s = self.budget.status()
         self.on_event({"type": "budget", "used": s.used, "cap": s.cap, "warn": s.warn,
@@ -69,9 +80,10 @@ class Orchestrator:
             return Reply(local_exec.msg(lang, "limit"), "limit", persona.name, lang, self._emit_budget())
         self._emit_budget()
         resume = self.sessions.resume_id(persona.name)
-        argv = build_argv(persona, self._mcp_file(persona.name), self.cfg, resume)
+        eff, timeout = self._effective_cfg(persona.name)
+        argv = build_argv(persona, self._mcp_file(persona.name), eff, resume)
         self.on_event({"type": "start", "persona": persona.name, "query": text})
-        res = self._runner(argv, text, self.on_event, timeout=self.cfg["claude"]["timeout_seconds"])
+        res = self._runner(argv, text, self.on_event, timeout=timeout)
 
         if res.is_error and not res.produced_output:
             self.budget.refund()           # nothing happened: do not charge the user's daily cap

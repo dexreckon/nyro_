@@ -22,23 +22,31 @@ async def _synth(text: str, voice: str, path: str) -> None:
 
 
 def _play(path: str) -> None:
+    import time
+
     import miniaudio
-    with miniaudio.PlaybackDevice() as dev:
-        stream = miniaudio.stream_file(path)
-        done = threading.Event()
+    rate, ch = 48000, 2
+    fmt = miniaudio.SampleFormat.SIGNED16
+    # Decode once to exactly the device format (edge-tts gives 24 kHz mono): no pitch shift, no resampling mid-stream.
+    samples = miniaudio.decode_file(path, output_format=fmt, nchannels=ch, sample_rate=rate).samples
+    total = len(samples)
+    done = threading.Event()
 
-        def gen():
-            yield b""
-            try:
-                for chunk in stream:
-                    yield chunk
-            finally:
-                done.set()
+    def gen():
+        pos = 0
+        required = yield b""  # first send() tells us how many frames the device wants
+        while pos < total:
+            n = max(int(required), 1) * ch
+            required = yield samples[pos:pos + n]  # device expects exactly the frames it asked for
+            pos += n
+        done.set()
 
+    with miniaudio.PlaybackDevice(output_format=fmt, nchannels=ch, sample_rate=rate) as dev:
         g = gen()
         next(g)
         dev.start(g)
         done.wait(120)
+        time.sleep(0.4)  # let the last buffer drain instead of cutting the tail
 
 
 def speak_blocking(text: str, voices: dict[str, str] | None = None) -> bool:

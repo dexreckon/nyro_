@@ -128,11 +128,16 @@ _ACTION_TIERS: dict[str, Risk] = {
     "list_allowed_files": Risk.GREEN,
     "read_document": Risk.GREEN,
     "open_url": Risk.GREEN,
+    "close_tab": Risk.GREEN,  # Ctrl+W on a real browser window only (enforced in sysop_impl.close_tab)
+    "open_target": Risk.GREEN,  # whitelisted sites/apps only (enforced in sysop_impl.open_target)
     "extract_dom_text": Risk.GREEN,
     "type_text": Risk.GREEN,
     # modifying
     "write_markdown": Risk.YELLOW,
+    "write_docx": Risk.YELLOW,
     "soft_delete_file": Risk.YELLOW,
+    "request_control": Risk.YELLOW,  # mouse/keyboard grant: always asks the user first
+    "open_path": Risk.GREEN,  # jailed + passive file types only (enforced in fileclerk_impl.open_path)
 }
 
 _SUBMIT_WORDS = re.compile(
@@ -161,7 +166,7 @@ def classify_action(action: str, params: dict[str, Any] | None = None,
         return Risk.RED
 
     blob = " ".join(str(v) for v in params.values())
-    if _RED_COMMAND.search(blob) and action not in {"type_text"}:
+    if _RED_COMMAND.search(blob) and action not in {"type_text", "request_control"}:
         return Risk.RED
     if _RED_REGISTRY.search(blob):
         return Risk.RED

@@ -27,14 +27,17 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' 
 MIN_TOKEN_LEN = 24
 AUTH_TIMEOUT = 8.0
 MAX_MOBILE_MSG = 8 * 1024
+MAX_AUDIO_MSG = 400 * 1024    # one spoken request (~25 s of opus is ~80 KB), base64 in JSON
+AUDIO_LIMIT, AUDIO_WINDOW = 10, 60.0
 MAX_HOST_MSG = 512 * 1024
 MAX_MOBILES = 4
 HISTORY = 120
 APPROVAL_TTL = 130.0          # a bit over the host's 120s wait
 FAIL_LIMIT, FAIL_WINDOW = 5, 300.0
 CMD_LIMIT, CMD_WINDOW = 12, 60.0
-MOBILE_TO_HOST = {"command", "approval_response", "sync"}
-HOST_TO_MOBILE = {"event", "heard", "reply", "listening", "idle", "screenshot", "approval_request", "status"}
+MOBILE_TO_HOST = {"command", "approval_response", "sync", "audio"}
+HOST_TO_MOBILE = {"event", "heard", "reply", "listening", "idle", "screenshot", "approval_request", "status",
+                  "transcript"}
 
 
 class Settings:
@@ -116,7 +119,7 @@ class Hub:
     async def to_mobiles(self, msg: dict) -> None:
         if msg.get("type") == "screenshot":
             self.last_screenshot = msg
-        else:
+        elif msg.get("type") != "transcript":   # one-shot reply to a single request: never replayed from history
             self.history.append(msg)
         for ws in list(self.mobiles):
             try:
@@ -148,6 +151,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return resp
     fails: dict[str, deque] = defaultdict(deque)
     cmds: dict[int, deque] = defaultdict(deque)
+    audios: dict[int, deque] = defaultdict(deque)
 
     def client_ip(ws: WebSocket) -> str:
         if st.trust_proxy:
@@ -233,7 +237,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             while True:
                 raw = await ws.receive_text()
-                if len(raw) > MAX_MOBILE_MSG:
+                limit = MAX_AUDIO_MSG if raw[:40].replace(" ", "").startswith('{"type":"audio"') else MAX_MOBILE_MSG
+                if len(raw) > limit:
                     await ws.send_json({"type": "error", "error": "message too large"}); continue
                 try:
                     msg = json.loads(raw)
@@ -255,6 +260,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         await ws.send_json({"type": "error", "error": "Slow down"}); continue
                     q.append(now)
                     msg = {"type": "command", "text": text[:2000], "lang": msg.get("lang") if msg.get("lang") in ("en", "ur") else None}
+                elif t == "audio":
+                    q, now = audios[id(ws)], time.time()
+                    while q and now - q[0] > AUDIO_WINDOW:
+                        q.popleft()
+                    b64, rid = msg.get("b64"), msg.get("rid")
+                    if not isinstance(b64, str) or not b64 or not isinstance(rid, (int, str)):
+                        continue
+                    if len(q) >= AUDIO_LIMIT:
+                        await ws.send_json({"type": "error", "error": "Slow down"}); continue
+                    q.append(now)
+                    mime = msg.get("mime") if isinstance(msg.get("mime"), str) else ""
+                    msg = {"type": "audio", "b64": b64, "rid": rid, "mime": mime[:60],
+                           "lang": msg.get("lang") if msg.get("lang") in ("en", "ur") else None}
                 elif t == "approval_response":
                     try:
                         aid, approved = int(msg["id"]), bool(msg.get("approved"))
@@ -277,6 +295,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             hub.mobiles.discard(ws)
             cmds.pop(id(ws), None)
+            audios.pop(id(ws), None)
             await asyncio.to_thread(store.session_end, sid)
 
     if Path(st.pwa_dir).is_dir():
