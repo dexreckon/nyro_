@@ -54,6 +54,18 @@ class OpenIntentTests(unittest.TestCase):
             i = route(t)
             self.assertEqual((i.kind, i.persona), ("llm", "desktopctl"), t)
 
+    def test_open_plus_instructions_is_not_swallowed_by_the_simple_open(self):
+        # earlier bug: "open gemini on chrome and in gemini type hello" just opened Chrome and dropped the rest
+        for t in ("open gemini on chrome and in gemini type hello", "open settings on laptop and navigate to windows update",
+                  "open youtube and play lofi music"):
+            i = route(t)
+            self.assertEqual((i.kind, i.persona), ("llm", "desktopctl"), t)
+
+    def test_settings_pages_open_locally(self):
+        self.check("open windows update", "windowsupdate")
+        self.check("open settings", "settings")
+        self.check("open gemini in chrome", "gemini", "chrome")
+
     def test_unknown_site_is_not_opened(self):
         self.assertNotEqual(route("open evil-site").action, "open_target")
 

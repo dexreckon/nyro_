@@ -45,7 +45,29 @@ WINDOW_VERBS = {"maximize": "maximize", "maximise": "maximize", "minimize": "min
 CLEAR_WORDS = {"clear", "hide", "remove", "dismiss"}
 CLEAR_OBJECTS = {"overlay", "annotations", "drawings", "arrows", "cursor", "marks", "highlights", "screen"}
 
-PERSONAS = ("screencoach", "sysop", "webpilot", "fileclerk", "desktopctl")
+PERSONAS = ("screencoach", "sysop", "webpilot", "fileclerk", "desktopctl", "coder", "filemanager")
+
+# ---- file manager words (English / Roman Urdu / Urdu / Devanagari)
+ORG_VERBS = _ns({"organize", "organise", "clean", "cleanup", "tidy", "sort", "declutter", "arrange", "saaf", "safai",
+                 "tarteeb", "صاف", "ترتیب", "साफ", "व्यवस्थित"})
+DOWNLOAD_WORDS = _ns({"downloads", "download", "ڈاؤنلوڈ", "ڈاؤنلوڈز", "ڈاؤن", "डाउनलोड", "डाउनलोड्स"})
+DESKTOP_WORDS = _ns({"desktop", "ڈیسکٹاپ", "ڈیسک", "डेस्कटॉप"})
+ICON_WORDS = _ns({"icons", "icon", "shortcuts", "shortcut", "layout", "آئیکن", "آئیکنز", "شارٹ", "आइकन", "शॉर्टकट"})
+UNDO_WORDS = _ns({"undo", "revert", "wapas", "واپس", "वापस"})
+RESTORE_WORDS = _ns({"restore", "reset", "undo", "revert"})
+FIND_VERBS = _ns({"find", "locate", "search", "dhundo", "dhoondo", "ڈھونڈو", "تلاش", "खोजो", "ढूंढो"})
+FILEISH = _ns({"file", "files", "pdf", "doc", "docx", "document", "documents", "folder", "downloads", "desktop",
+               "assignment", "ppt", "pptx", "excel", "xlsx", "image", "photo", "picture", "resume", "cv", "invoice",
+               "receipt", "notes", "zip", "lecture", "report", "thesis", "lab", "slides", "فائل", "फाइल"})
+_FM_FILLER = _ns({"my", "the", "a", "an", "for", "please", "me", "in", "on", "pc", "laptop", "computer", "that", "this",
+                  "file", "files", "up", "it", "now", "kar", "karo", "kardo", "do", "mere", "meri", "mera", "ka", "ki",
+                  "ko", "کرو", "کر", "دو", "میرا", "میری", "करो", "कर", "दो", "मेरा", "मेरी"})
+
+STOP_WORDS = _ns({"stop", "quiet", "silence", "enough", "cancel", "shh", "shush", "ruko", "ruk", "bas", "chup",
+                  "رکو", "رک", "بس", "چپ", "रुको", "रुक", "बस", "चुप"})
+_STOP_FILLER = _ns({"it", "talking", "speaking", "please", "now", "jao", "jaao", "karo", "kardo", "kar", "do", "nyro",
+                    "ok", "okay", "alright", "just", "yes", "yeah", "oh",
+                    "hey", "the", "that", "everything", "all", "جاؤ", "کرو", "کر", "دو", "जाओ", "करो", "कर", "दो"})
 
 OPEN_VERBS = _ns({"open", "launch", "start", "kholo", "khol", "kholdo", "kholna", "kholiye", "chalao", "chalu", "chala",
                   "کھولو", "کھول", "کھولیں", "کھولئے", "کھولیے", "کھولدو", "چلاو", "چلا", "چالو",
@@ -67,6 +89,21 @@ _ALIAS_SRC: dict[str, list[str]] = {
     "maps": ["maps", "google maps", "نقشہ", "मैप्स"],
     "claude": ["claude", "کلاڈ", "क्लॉड"],
     "chatgpt": ["chatgpt", "chat gpt"],
+    "gemini": ["gemini", "جیمنی", "जेमिनी"],
+    "vscode": ["vscode", "vs code", "visual studio code", "وی ایس کوڈ", "वीएस कोड"],
+    "androidstudio": ["android studio", "اینڈرائیڈ اسٹوڈیو", "एंड्रॉयड स्टूडियो"],
+    "pycharm": ["pycharm", "py charm"],
+    "intellij": ["intellij", "intellij idea"],
+    "clion": ["clion", "c lion"],
+    "webstorm": ["webstorm", "web storm"],
+    "antigravity": ["antigravity", "anti gravity"],
+    "sublime": ["sublime text", "sublime"],
+    "visualstudio": ["visual studio"],
+    "settings": ["windows settings", "settings", "سیٹنگز", "सेटिंग्स"],
+    "windowsupdate": ["windows update", "ونڈوز اپڈیٹ", "विंडोज अपडेट"],
+    "wifi": ["wifi settings", "wi fi settings"],
+    "bluetooth": ["bluetooth settings"],
+    "display": ["display settings"],
     "twitter": ["twitter", "ٹویٹر", "ट्विटर"],
     "amazon": ["amazon", "ایمیزون", "अमेज़न", "अमेजन"],
     "drive": ["google drive", "drive", "ڈرائیو"],
@@ -116,6 +153,21 @@ def find_targets(t: str) -> list[str]:
     return [c for _, c in sorted(hits)]
 
 
+_ALIAS_WORDS = {w for alias, _ in _ALIASES for w in alias.split()}
+_OPEN_FILLER = _ns({"the", "a", "my", "please", "now", "on", "in", "at", "for", "me", "app", "application", "website",
+                    "site", "browser", "window", "laptop", "pc", "computer", "and", "then", "it", "up",
+                    "kar", "karo", "kardo", "kardijiye", "do", "dena", "de", "mein", "me", "main", "par", "pe", "se",
+                    "ko", "ka", "ki", "ke", "zara", "jaldi",
+                    "میں", "پر", "سے", "کو", "کرو", "کر", "دو", "دیں", "کریں", "ذرا", "جلدی",
+                    "में", "पर", "से", "को", "करो", "कर", "दो", "ज़रा", "जल्दी"})
+
+
+def _only_open_words(t: str) -> bool:
+    """True when the sentence is just: open-verb + site/app/browser names + filler words."""
+    words = [w.strip(".") for w in t.split()]
+    return all(w in OPEN_VERBS or w in _ALIAS_WORDS or w in _OPEN_FILLER or not w for w in words)
+
+
 _SEARCH_RE = re.compile(r"^(?:search|find|look up|play)\s+(.+?)\s+(?:on|in)\s+(youtube|google)"
                         r"(?:\s+(?:in|on)\s+(chrome|edge|firefox|brave))?$")
 
@@ -142,6 +194,10 @@ def parse_local(text: str) -> Intent | None:
     lang = detect_language(text)
     num = _number(t)
     up, down = _has(UP, toks, t), _has(DOWN, toks, t)
+
+    words = [w.strip(".") for w in toks]
+    if len(words) <= 4 and any(w in STOP_WORDS for w in words) and all(w in STOP_WORDS or w in _STOP_FILLER for w in words):
+        return Intent("local", "sysop", "stop_speaking", {}, lang)      # "stop", "stop talking", "ruk jao", "bas karo"
 
     def rel(kind_set_action: str, kind_change_action: str) -> Intent | None:
         if num is not None and not (up or down):
@@ -183,13 +239,20 @@ def parse_local(text: str) -> Intent | None:
                       {"target": sm.group(2), "browser": sm.group(3), "query": sm.group(1)}, lang)
     if any(w in OPEN_VERBS for w in toks):
         found = find_targets(t)
-        if found:
+        # only for a plain "open X (in Y)". Anything with extra instructions ("...and in Gemini type hello")
+        # goes to the mouse/keyboard agent, which can open things AND keep going.
+        if found and _only_open_words(t):
             sites_apps = [c for c in found if c not in BROWSER_NAMES]
             browsers = [c for c in found if c in BROWSER_NAMES]
             if sites_apps:
                 return Intent("local", "sysop", "open_target",
                               {"target": sites_apps[0], "browser": browsers[0] if browsers else None}, lang)
             return Intent("local", "sysop", "open_target", {"target": browsers[0], "browser": None}, lang)
+
+    # ---- file manager: organise folders, arrange desktop icons, undo, find files
+    fm = _parse_file_manager(bare, lang)
+    if fm:
+        return fm
 
     for verb, action in WINDOW_VERBS.items():
         if verb in toks:
@@ -208,6 +271,38 @@ def parse_local(text: str) -> Intent | None:
     return None
 
 
+def _parse_file_manager(words: list[str], lang: str) -> Intent | None:
+    ws = set(words)
+    has_dl, has_dt, has_icons = bool(ws & DOWNLOAD_WORDS), bool(ws & DESKTOP_WORDS), bool(ws & ICON_WORDS)
+    # restore the desktop icon layout
+    if ws & RESTORE_WORDS and has_icons and (has_dt or "layout" in ws or "icons" in ws or "shortcuts" in ws):
+        return Intent("local", "filemanager", "restore_icons", {}, lang)
+    # undo the last organise ("undo", "undo cleanup", "revert downloads")
+    undo_ok = _ns({"undo", "revert", "organize", "organise", "cleanup", "clean", "up", "tidy", "sort", "last", "that",
+                   "it", "the", "my", "please", "wapas", "karo", "kardo", "do", "layout", "arrange"}) | DOWNLOAD_WORDS | DESKTOP_WORDS | UNDO_WORDS
+    if ws & UNDO_WORDS and ws <= undo_ok and len(words) <= 5:
+        return Intent("local", "filemanager", "undo_organize",
+                      {"folder": "downloads" if has_dl else "desktop" if has_dt else None}, lang)
+    # organise / arrange
+    if ws & ORG_VERBS:
+        if has_dt and has_icons:
+            return Intent("local", "filemanager", "arrange_icons", {"mode": "name" if "name" in ws else "category"}, lang)
+        if has_dt:
+            return Intent("local", "filemanager", "organize_desktop", {}, lang)
+        if has_dl:
+            return Intent("local", "filemanager", "organize_folder", {"folder": "downloads"}, lang)
+    # "open downloads", "open the desktop folder", "downloads kholo"
+    if ws & OPEN_VERBS and (has_dl or has_dt) and ws <= (OPEN_VERBS | DOWNLOAD_WORDS | DESKTOP_WORDS | _FM_FILLER
+                                                         | _ns({"folder", "فولڈر", "फोल्डर"})):
+        return Intent("local", "filemanager", "open_folder", {"folder": "downloads" if has_dl else "desktop"}, lang)
+    # find a file: needs a file-ish word so "find lofi music" is not treated as a file search
+    if words and words[0] in FIND_VERBS and ws & FILEISH:
+        query = " ".join(w for w in words[1:] if w not in _FM_FILLER)
+        if query:
+            return Intent("local", "filemanager", "find_files", {"query": query}, lang)
+    return None
+
+
 _WEB = re.compile(r"(https?://|www\.|\b[\w-]+\.(com|org|net|edu|io|pk)\b|\bwebsite\b|\bbrowser\b|\bchrome tab\b|"
                   r"\bgo to\b|\bgoogle\b|\bportal\b|\bfill (in |out )?(the |this )?form\b|\bweb page\b|ویب|ویب سائٹ)")
 _FILE = re.compile(r"(\bnotes?\b|\bfiles?\b|\bfolder\b|\bdocuments?\b|\.md\b|\bsave (this )?(as|to)\b|\bwrite (me )?a note\b|"
@@ -222,20 +317,64 @@ _INPUT = re.compile(r"(\bmouse\b|\bkeyboard\b|\bdouble.?click\b|\bclick\b|\bscro
                     r"\bdrag\b|\brefresh\b|\breload\b|\bgo back\b|\btype (this|it|the|in|out|into)\b)")
 
 
+# The user wants Nyro to DO things. It only guides (points/draws) when asked to explain or when it is a question.
+_QUESTION_START = re.compile(
+    r"^(?:(?:can|could|would|will) you |please |hey |nyro |ok |okay )*"
+    r"(?:explain|how|why|what|whats|which|where|who|show me|guide|teach|tell me|describe|walk me|help me understand|"
+    r"is there|does|do you|samjhao|samjha|kaise|kyun|kyon|kya|batao|bataiye)\b")
+_GUIDEY = re.compile(r"(\bslide\b|\bguide\b|\bpoint\b|\bshow me\b|\bhelp me\b|\berror\b|\bsyntax\b|اسکرین|یہاں|یہ\b|کیا)")
+_GUIDE_ANYWHERE = re.compile(r"(\bexplain\b|\bguide me\b|\bteach me\b|\bwhere (is|are)\b|\bshow me (how|where)\b|\bsamjhao\b|"
+                             r"سمجھا|کیسے|کیوں|بتاؤ|समझा|कैसे|क्यों|बताओ)")
+
+
+_LANGS = r"(?:python|cpp|csharp|dart|flutter|javascript|typescript|java|kotlin|golang|rust|php|ruby|swift|html|css|sql)"
+_THING = r"(?:file|program|script|code|app|class|function|project|snippet)"
+_IDES = r"(?:vscode|visual studio|pycharm|intellij|android studio|clion|webstorm|cursor|sublime|antigravity)"
+_MAKE = r"(?:create|make|write|generate|code|build|develop)"
+_CODE = re.compile(
+    r"(\.(?:py|cpp|cc|cxx|c|h|hpp|js|mjs|ts|tsx|jsx|dart|java|kt|cs|go|rs|swift|php|rb|html|css|sql)\b"
+    rf"|\b{_LANGS}\b.*\b{_THING}\b|\b{_THING}\b.*\b{_LANGS}\b|\b{_MAKE}\b.*\b{_LANGS}\b"
+    rf"|\b{_MAKE}\b.*\b{_IDES}\b|\b{_IDES}\b.*\b{_MAKE}\b)")
+
+
+def _speech_to_code_words(text: str) -> str:
+    """'C++' / 'C#' / 'VS Code' / 'dot py' are mangled by normalization or speech-to-text; spell them out."""
+    t = re.sub(r"c\s*\+\+|c plus plus|see plus plus", "cpp", text, flags=re.I)
+    t = re.sub(r"c\s*#|c sharp", "csharp", t, flags=re.I)
+    t = re.sub(r"vs\s*code|visual studio code|v s code", "vscode", t, flags=re.I)
+    return re.sub(r"\bdot (py|cpp|js|dart|java|ts|html|css|cs|go|rs)\b", r".\1", t, flags=re.I)
+
+
+_ORGANIZE = re.compile(r"\b(organi[sz]e|tidy|declutter|clean ?up|sort out|arrange)\b.*\b(downloads?|desktop|icons|shortcuts)\b"
+                       r"|\b(downloads?|desktop)\b.*\b(organi[sz]e|tidy|declutter|clean ?up|sort out)\b")
+_SOLVE = re.compile(r"\b(solve|solution|answer|answers|complete|make me|write me|prepare|do my|fill)\b")
+_FM_FIND = re.compile(
+    r"\b(find|search|locate|look for|where (is|are|did)|where's|show me|open|dhundo)\b.*\b(file|files|pdf|docx?|document|"
+    r"documents|folder|downloads?|assignment|photo|picture|image|video|invoice|receipt|notes?|zip|presentation|ppt|"
+    r"spreadsheet|excel|sheet|lab|report|resume|cv|thesis|lecture|slides)\b")
+
+
 def route_persona(text: str) -> str:
-    t = normalize(text)
-    # "open youtube in chrome" phrased in a way the local router missed: SysOp has open_target, WebPilot does not
-    if any(w in OPEN_VERBS for w in t.split()) and find_targets(t):
-        return "sysop"
-    if _DOCS.search(t):          # "make a solution Word file for the assignment PDF in Downloads"
+    t = normalize(_speech_to_code_words(text))
+    if _CODE.search(t) and not _INPUT.search(t.replace("code", "")):
+        return "coder"                         # "make a .py file in vs code", "write a c++ program in clion"
+    if _ORGANIZE.search(t):                    # "organise my downloads but keep invoices separate", "tidy my desktop"
+        return "filemanager"
+    if _DOCS.search(t) and _SOLVE.search(t):   # "make a solution Word file for the assignment PDF in Downloads"
         return "fileclerk"
-    if _INPUT.search(t):         # explicit mouse/keyboard work
-        return "desktopctl"
-    if _WEB.search(t):
-        return "webpilot"
-    if _FILE.search(t) and not _SCREEN.search(t):
+    if _FM_FIND.search(t):                     # "where is my assignment pdf", "find the invoice I downloaded"
+        return "filemanager"
+    if _DOCS.search(t):
         return "fileclerk"
-    return "screencoach"
+    if _QUESTION_START.match(t) or _GUIDE_ANYWHERE.search(t):
+        return "screencoach"                   # explain / point / draw on the screen
+    if _GUIDEY.search(t) and not _INPUT.search(t):
+        return "screencoach"                   # "help me here", "there is a syntax error"
+    if _FILE.search(t) and not _SCREEN.search(t) and not _INPUT.search(t):
+        return "fileclerk"
+    # everything else is an instruction: operate the mouse and keyboard (it can also open sites/apps, close tabs,
+    # and answers plain chat in one sentence without touching anything)
+    return "desktopctl"
 
 
 def route(text: str) -> Intent:

@@ -23,6 +23,7 @@ class Reply:
     persona: str | None = None
     lang: str = "en"
     budget: str = ""       # e.g. "142/400"
+    silent: bool = False   # show but do not speak (e.g. the confirmation of "stop")
 
 
 class Orchestrator:
@@ -73,7 +74,8 @@ class Orchestrator:
 
         if intent.kind == "local":
             out = self._local(intent, self.cfg)
-            return Reply(out, "local", intent.persona, lang, self._emit_budget())
+            return Reply(out, "local", intent.persona, lang, self._emit_budget(),
+                         silent=intent.action == "stop_speaking")
 
         persona = PERSONAS[intent.persona or "screencoach"]
         if not self.budget.try_consume():

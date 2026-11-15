@@ -67,13 +67,20 @@ class Recorder:
     def __init__(self, max_seconds: float = 15.0, sr: int = SAMPLE_RATE):
         self.max_seconds, self.sr = max_seconds, sr
 
-    def record(self, on_level=None) -> np.ndarray:
-        """Record until the speaker stops. `on_level(rms)` is called ~20x/second (drives the Dynamic Island)."""
+    def record(self, on_level=None, preroll=None) -> np.ndarray:
+        """Record until the speaker stops. `on_level(rms)` is called ~20x/second (drives the Dynamic Island).
+        `preroll`: audio captured just before recording started (voice barge-in), so the first words aren't lost."""
         import sounddevice as sd
         chunks: list[np.ndarray] = []
         block = int(self.sr * 0.05)
+        total = 0
+        if preroll is not None and len(preroll):
+            # a short stretch of "typical room noise" first: the endpointing calibrates on the first 300 ms,
+            # which would otherwise be the tail of Nyro's own voice and make it deaf to the user's speech
+            pad = np.full(int(0.3 * self.sr), 0.003, dtype=np.float32)
+            chunks += [pad, np.asarray(preroll, dtype=np.float32)]
+            total = len(pad) + len(preroll)
         with sd.InputStream(samplerate=self.sr, channels=1, dtype="float32", blocksize=block) as stream:
-            total = 0
             while total < self.max_seconds * self.sr:
                 data, _ = stream.read(block)
                 chunks.append(data[:, 0].copy())

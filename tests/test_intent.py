@@ -74,14 +74,18 @@ class PersonaRouteTests(unittest.TestCase):
             "guide me how to add a transition in davinci resolve": "screencoach",
             "explain this slide": "screencoach",
             "there is a syntax error here": "screencoach",
-            "go to google.com and search for cats": "webpilot",
-            "open https://example.com": "webpilot",
-            "check my university portal": "webpilot",
+            # instructions are carried out with the mouse/keyboard agent (it can open sites/apps and keep going)
+            "go to google.com and search for cats": "desktopctl",
+            "open https://example.com": "desktopctl",
+            "check my university portal": "desktopctl",
+            "open gemini on chrome and in gemini type hello": "desktopctl",
+            "close the youtube popup": "desktopctl",
+            "pause the video": "desktopctl",
             "summarize my notes about physics": "fileclerk",
             "save this as a note in my folder": "fileclerk",
             "اس فائل کا خلاصہ بتاو": "fileclerk",
             "یہاں کیا غلطی ہے": "screencoach",
-            "something totally random": "screencoach",
+            "something totally random": "desktopctl",   # default is to DO, not to point
         }
         for text, want in cases.items():
             self.assertEqual(route_persona(text), want, text)

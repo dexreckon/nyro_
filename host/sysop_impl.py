@@ -84,7 +84,12 @@ SITES = {
     "netflix": "https://www.netflix.com", "reddit": "https://www.reddit.com", "wikipedia": "https://www.wikipedia.org",
     "maps": "https://maps.google.com", "claude": "https://claude.ai", "chatgpt": "https://chatgpt.com",
     "twitter": "https://x.com", "amazon": "https://www.amazon.com", "drive": "https://drive.google.com",
+    "gemini": "https://gemini.google.com",
 }
+# Windows Settings pages (viewing only: opening a page changes nothing)
+SETTINGS = {"settings": "ms-settings:", "windowsupdate": "ms-settings:windowsupdate", "wifi": "ms-settings:network-wifi",
+            "bluetooth": "ms-settings:bluetooth", "display": "ms-settings:display", "sound": "ms-settings:sound",
+            "apps": "ms-settings:appsfeatures", "battery": "ms-settings:batterysaver"}
 BROWSERS = {"chrome": "chrome", "edge": "msedge", "firefox": "firefox", "brave": "brave"}
 APPS = {"notepad": "notepad", "calculator": "calc", "paint": "mspaint", "explorer": "explorer",
         "word": "winword", "excel": "excel", "powerpoint": "powerpnt"}
@@ -111,6 +116,14 @@ def open_target(target: str, browser: str | None = None, query: str | None = Non
         if r <= 32:
             raise RuntimeError(f"could not open {browser or 'the default browser'} (code {r})")
         return f"{target} in {browser}" if browser else target
+    from host import ide as _ide
+    if target in _ide.IDES:                      # "open vs code", "open android studio"
+        return _ide.open_in_ide(target)
+    if target in SETTINGS:
+        r = ctypes.windll.shell32.ShellExecuteW(None, "open", SETTINGS[target], None, None, 1)
+        if r <= 32:
+            raise RuntimeError(f"could not open Windows Settings (code {r})")
+        return "Windows Settings" if target == "settings" else f"Windows Settings: {target}"
     if target in BROWSERS or target in APPS:
         exe = BROWSERS.get(target) or APPS[target]
         r = ctypes.windll.shell32.ShellExecuteW(None, "open", exe, None, None, 1)

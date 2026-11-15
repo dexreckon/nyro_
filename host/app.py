@@ -28,8 +28,10 @@ class NyroApp:
                  beep: Callable[[], None] | None = None,
                  notify: Callable[[str, str], None] | None = None,
                  island: Any = None,
-                 transcribe_bytes: Callable[[bytes, str | None], tuple[str, str]] | None = None):
+                 transcribe_bytes: Callable[[bytes, str | None], tuple[str, str]] | None = None,
+                 stop_speech: Callable[[], None] | None = None):
         self._tb = transcribe_bytes
+        self._stop_speech = stop_speech or (lambda: None)   # silence Nyro's voice (hotkey / barge-in / "stop")
         from host.overlay.island_client import NullIsland
         self._island = island or NullIsland()   # Dynamic Island status pill (no-op in tests)
         self._notify = notify or (lambda title, msg: None)
@@ -80,7 +82,7 @@ class NyroApp:
                     pass
             self._phone({"type": "reply", "text": reply.text, "source": reply.source,
                          "persona": reply.persona, "budget": reply.budget})
-            if reply.text:
+            if reply.text and not reply.silent:
                 self._speak(reply.text)
             return reply
         finally:
@@ -88,15 +90,18 @@ class NyroApp:
                 self._island.state("error", "Something went wrong")
             self._busy.release()
 
-    def listen_once(self) -> Reply | None:
-        """Wake word / hotkey / tray: island opens, beep, record, transcribe, handle."""
+    def listen_once(self, beep: bool = True, preroll: Any = None) -> Reply | None:
+        """Wake word / hotkey / tray / voice barge-in: stop talking, island opens, record, transcribe, handle.
+        `preroll` = mic audio from just before a barge-in was detected (so the first words are kept)."""
         if self._busy.locked() or self._rt is None:
             return None
+        self._stop_speech()                  # never talk over (or record) our own voice
         self._island.state("listening")      # first thing: instant visual feedback
-        self._beep()
+        if beep:
+            self._beep()
         self._phone({"type": "listening"})
         try:
-            text, lang = self._rt()
+            text, lang = self._rt(preroll) if preroll is not None else self._rt()
         except Exception as e:
             print(f"[wake] recording failed: {e}", flush=True)
             self._island.state("error", "Microphone problem")
@@ -175,7 +180,7 @@ def main() -> int:  # pragma: no cover - needs Windows desktop + hardware
                            cfg["budget"]["warn_ratio"], cfg["budget"]["hourly_pace_warn"])
 
     from host.relay_client import RelayClient, token_from_env
-    from host.voice import stt, tts, wakeword
+    from host.voice import bargein, stt, tts, wakeword
 
     holder: dict[str, Any] = {}
     relay = RelayClient(cfg["relay"]["url"], token_from_env(cfg), lambda m: holder["app"].on_phone_message(m, holder["broker"]))
@@ -186,17 +191,45 @@ def main() -> int:  # pragma: no cover - needs Windows desktop + hardware
     isl_cfg = {"enabled": True, "port": 8767, **(cfg.get("island") or {})}
     island = IslandClient(int(isl_cfg["port"]), bool(isl_cfg["enabled"]))
 
-    def record_and_transcribe() -> tuple[str, str]:
+    def record_and_transcribe(preroll=None) -> tuple[str, str]:
         # mic level -> island waveform; (rms / 0.05) ** 0.6 maps normal speech to roughly 0.3-1.0
-        audio = recorder.record(on_level=lambda rms: island.level(min(1.0, (rms / 0.05) ** 0.6)))
+        audio = recorder.record(on_level=lambda rms: island.level(min(1.0, (rms / 0.05) ** 0.6)), preroll=preroll)
         island.state("thinking")             # transcribing
         return transcriber.transcribe(audio)
+
+    def index_loop() -> None:
+        """Keep the local file-search index fresh in the background (names fast, PDF/Word text a little at a time)."""
+        from host import filemanager as FM
+        time.sleep(20)                       # let Nyro finish starting first
+        while True:
+            pending = 0
+            try:
+                r = FM.refresh_index(cfg, budget_s=40.0)
+                pending = int(r.get("text_pending", 0))
+                if "skipped" not in r:
+                    print(f"[index] {r.get('files', '?')} files indexed, {pending} still to read", flush=True)
+            except Exception as e:
+                print(f"[index] failed: {e}", flush=True)
+            time.sleep(120 if pending else float((cfg.get("index") or {}).get("refresh_minutes", 20)) * 60)
+
+    threading.Thread(target=index_loop, daemon=True).start()
+
+    def on_barge_in(preroll) -> None:
+        """The user started talking over Nyro: cut Nyro off and listen (keeping the first words from `preroll`)."""
+        print("[barge-in] interrupted", flush=True)
+        threading.Thread(target=holder["app"].listen_once, kwargs={"beep": False, "preroll": preroll}, daemon=True).start()
+
+    def speak(text: str) -> None:
+        t = tts.speak(text, cfg["voice"]["voices"])
+        if cfg["voice"].get("barge_in", True):
+            bargein.start_watch(t.is_alive, tts.playback_level, on_barge_in)
 
     app = NyroApp(cfg, data_dir, orch,
                   record_and_transcribe=record_and_transcribe,
                   transcribe_bytes=transcriber.transcribe_bytes,
                   island=island,
-                  speak=lambda t: tts.speak(t, cfg["voice"]["voices"]),
+                  stop_speech=tts.stop,
+                  speak=speak,
                   send_phone=relay.send,
                   beep=lambda: __import__("winsound").Beep(880, 120),
                   notify=lambda title, msg: holder["icon"].notify(msg, title) if holder.get("icon") else None)

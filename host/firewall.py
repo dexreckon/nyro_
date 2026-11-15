@@ -128,6 +128,19 @@ _ACTION_TIERS: dict[str, Risk] = {
     "list_allowed_files": Risk.GREEN,
     "read_document": Risk.GREEN,
     "open_url": Risk.GREEN,
+    "search_files": Risk.GREEN,
+    "open_found_file": Risk.GREEN,        # inside managed folders, passive file types only (checked in filemanager)
+    "preview_organize": Risk.GREEN,
+    "organize_folder": Risk.YELLOW,       # moves many files: always asks first (and is undoable)
+    "undo_organize": Risk.GREEN,
+    "arrange_desktop_icons": Risk.GREEN,  # positions only; layout is backed up
+    "restore_desktop_layout": Risk.GREEN,
+    "write_code_new": Risk.GREEN,        # new source file inside the code workspace only (jail + extension list)
+    "write_code_overwrite": Risk.YELLOW,  # replacing an existing file asks first
+    "read_code_file": Risk.GREEN,
+    "list_code_files": Risk.GREEN,
+    "open_in_ide": Risk.GREEN,            # whitelisted IDE names only
+    "stop_speaking": Risk.GREEN,  # silences voice, revokes mouse/keyboard grant
     "close_tab": Risk.GREEN,  # Ctrl+W on a real browser window only (enforced in sysop_impl.close_tab)
     "open_target": Risk.GREEN,  # whitelisted sites/apps only (enforced in sysop_impl.open_target)
     "extract_dom_text": Risk.GREEN,

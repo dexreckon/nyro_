@@ -3,9 +3,15 @@
   "effort": "low",
   "persona_overrides": {
     "fileclerk": { "timeout_seconds": 900, "max_turns": 24 },
-    "desktopctl": { "timeout_seconds": 600, "max_turns": 40 }
+    "desktopctl": { "timeout_seconds": 600, "max_turns": 40 },
+    "coder": { "timeout_seconds": 600, "max_turns": 16 },
+    "filemanager": { "timeout_seconds": 300, "max_turns": 12 }
   },
+  "organizer": { "roots": ["downloads", "desktop"], "min_age_seconds": 120, "extra_rules": {} },
+  "index": { "roots": ["downloads", "desktop", "documents"], "refresh_minutes": 20 },
   "island": { "enabled": true, "port": 8767 },
+  "code": { "workspace": "~/Documents/Nyro Code", "default_ide": "vscode" },
+  "desktopctl": { "auto_approve": true },
   "languages": [
     "en",
     "ur"
@@ -99,6 +105,7 @@
   },
   "voice": {
     "stt_model": "small",
+    "barge_in": true,
     "voices": {
       "en": "en-US-AriaNeural",
       "ur": "ur-PK-UzmaNeural"
