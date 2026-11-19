@@ -32,6 +32,8 @@
   const ACTIONS = {
     write_markdown: "write a note", soft_delete_file: "move a file to the trash",
     click_element: "click a button in your browser", type_text: "type into a web page", open_url: "open a web page",
+    organize_folder: "organise a folder (files will be moved)", request_control: "control your mouse and keyboard",
+    write_docx: "create a Word file", write_code_overwrite: "overwrite a code file",
   };
   const actionLabel = (a) => ACTIONS[a] || String(a || "do something").replace(/_/g, " ");
 
@@ -40,9 +42,17 @@
     clear_annotations: "Clearing the overlay", set_volume: "Setting volume", set_brightness: "Setting brightness",
     toggle_mute: "Toggling mute", manage_window: "Arranging windows", lock_workstation: "Locking the PC",
     get_system_telemetry: "Checking system stats", open_url: "Opening a page", click_element: "Clicking in the browser",
-    type_text: "Typing in the browser", extract_dom_text: "Reading the page", capture_tab_screenshot: "Looking at the tab",
-    list_allowed_files: "Browsing your notes", read_document: "Reading a file", write_markdown: "Writing a note",
-    soft_delete_file: "Moving a file to trash",
+    type_text: "Typing", extract_dom_text: "Reading the page", capture_tab_screenshot: "Looking at the tab",
+    list_allowed_files: "Browsing your files", read_document: "Reading a file", write_markdown: "Writing a note",
+    soft_delete_file: "Moving a file to trash", write_docx: "Writing a Word file", open_path: "Opening a file",
+    open_target: "Opening it", close_tab: "Closing the tab", request_control: "Taking control", release_control: "Handing control back",
+    capture_screen: "Looking at your screen", click: "Clicking", scroll: "Scrolling", press_keys: "Pressing keys",
+    write_code_file: "Writing code", read_code_file: "Reading code", list_code_files: "Checking your code folder",
+    open_in_ide: "Opening your editor", installed_ides: "Checking your editors",
+    search_files: "Searching your files", reindex_files: "Updating the search index", open_folder: "Opening the folder",
+    show_in_explorer: "Showing it in Explorer", open_found_file: "Opening the file", preview_organize: "Planning the cleanup",
+    organize_folder: "Organising files", undo_organize: "Undoing the cleanup", arrange_desktop_icons: "Arranging desktop icons",
+    restore_desktop_layout: "Restoring the layout",
   };
   const toolLabel = (n) => TOOLS[n] || String(n || "tool").replace(/_/g, " ");
 
@@ -70,8 +80,17 @@
     return keep;
   }
 
+  /** One-tap follow-ups for a finished reply (e.g. Undo under "Moved 89 files... Say 'undo' to put them back"). */
+  function replyChips(text) {
+    const t = String(text || "");
+    const out = [];
+    if (/say ['"‘“]?undo['"’”]? to put/i.test(t)) out.push({ label: "Undo", say: "undo" });
+    if (/restore desktop layout/i.test(t)) out.push({ label: "Restore layout", say: "restore desktop layout" });
+    return out;
+  }
+
   const clamp01 = (n) => Math.max(0, Math.min(1, Number(n) || 0));
   const meterClass = (f) => (f >= 1 ? "full" : f >= 0.8 ? "warn" : "");
 
-  return { normalizeServer, wsUrl, actionLabel, toolLabel, titleFrom, groupLabel, trimChats, clamp01, meterClass, MAX_CHATS, MAX_MSGS };
+  return { normalizeServer, wsUrl, actionLabel, toolLabel, replyChips, titleFrom, groupLabel, trimChats, clamp01, meterClass, MAX_CHATS, MAX_MSGS };
 });

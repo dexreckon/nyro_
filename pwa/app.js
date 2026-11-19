@@ -6,7 +6,8 @@
   const VERSION = "1.0.0";
   const APPROVAL_SECONDS = 120;
   const SVGNS = "http://www.w3.org/2000/svg";
-  const PERSONA = { screencoach: "Screen coach", sysop: "System", webpilot: "Web", fileclerk: "Files" };
+  const PERSONA = { screencoach: "Screen coach", sysop: "System", webpilot: "Web", fileclerk: "Documents", desktopctl: "Control",
+    coder: "Code", filemanager: "Files & search" };
 
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
@@ -63,10 +64,11 @@
       v.row = el("div", "note" + (msg.kind ? " " + msg.kind : ""), msg.text); v.row.dir = "auto";
     } else {
       const row = el("div", "row ai"); const av = el("div", "avatar"); av.appendChild(icon("logo"));
-      const body = el("div", "ai-body"); v.shot = el("div"); v.steps = el("div", "steps"); v.content = el("div", "content");
+      const body = el("div", "ai-body"); v.who = el("div", "who", msg.persona || ""); v.who.hidden = !msg.persona;
+      v.shot = el("div"); v.steps = el("div", "steps"); v.content = el("div", "content"); v.chips = el("div", "chips"); v.chips.hidden = true;
       v.actions = el("div", "msg-actions"); const cp = el("button"); cp.type = "button"; cp.setAttribute("aria-label", "Copy"); cp.appendChild(icon("copy"));
       cp.addEventListener("click", () => copyText(msg.text || "", cp)); v.actions.appendChild(cp);
-      body.append(v.shot, v.steps, v.content, v.actions); row.append(av, body); v.row = row; v.copyBtn = cp;
+      body.append(v.who, v.shot, v.steps, v.content, v.chips, v.actions); row.append(av, body); v.row = row; v.copyBtn = cp;
     }
     thread.appendChild(v.row);
     if (msg.role === "ai") updateAi(msg);
@@ -83,6 +85,13 @@
     else if (!msg.done) { v.content.textContent = ""; const t = el("div", "typing"); t.append(el("i"), el("i"), el("i")); t.setAttribute("aria-label", "Nyro is thinking"); v.content.appendChild(t); }
     else v.content.textContent = "";
     v.actions.hidden = !(msg.done && msg.text);
+    v.chips.textContent = "";
+    if (msg.done && msg.text) L.replyChips(msg.text).forEach((c) => {
+      const b = el("button", "chip-btn", c.label); b.type = "button";
+      b.addEventListener("click", () => { if (sendText(c.say)) b.disabled = true; });
+      v.chips.appendChild(b);
+    });
+    v.chips.hidden = !v.chips.childElementCount;
     toBottom();
   }
 
@@ -149,7 +158,8 @@
     const online = connState === "online" && hostOnline;
     $("topDot").className = "dot " + (online ? "" : connState === "online" ? "off" : "warn");
     $("sbDot").className = $("topDot").className;
-    $("sbStatus").textContent = connState !== "online" ? ({ connecting: "Connecting…", reconnecting: "Reconnecting…", unreachable: "Can't reach server", locked: "Too many attempts" }[connState] || "Offline") : online ? "Laptop online" : "Laptop offline";
+    const label = connState !== "online" ? ({ connecting: "Connecting…", reconnecting: "Reconnecting…", unreachable: "Can't reach server", locked: "Too many attempts" }[connState] || "Offline") : online ? "Laptop online" : "Laptop offline";
+    $("sbStatus").textContent = label; $("topStatus").textContent = label;
     const bn = $("banner"); bn.textContent = "";
     let text = "", kind = "";
     if (connState === "unreachable") { text = "Can't reach your server. Retrying…"; kind = "err"; }
@@ -253,7 +263,7 @@
   }
   function finishReply(m) {
     awaitingReply = 0;
-    const a = curAi || ensureAi(m.source === "local" ? "Laptop" : PERSONA[m.persona] || "");
+    const a = curAi || ensureAi(PERSONA[m.persona] || (m.source === "local" ? "Laptop" : ""));
     if (typeof m.text === "string" && m.text) a.text = m.text;
     a.done = true; updateAi(a); curAi = null; saveSoon();
     if (m.source === "limit") note("Daily AI limit reached. Local controls still work.", "warn");
@@ -289,7 +299,7 @@
     e.preventDefault(); const t = input.value;
     if (sendText(t)) { input.value = ""; autosize(); refreshSend(); }
   });
-  $("suggestions").addEventListener("click", (e) => { const b = e.target.closest("button[data-say]"); if (b) sendText(b.dataset.say); });
+  ["suggestions", "quick"].forEach((id) => $(id).addEventListener("click", (e) => { const b = e.target.closest("button[data-say]"); if (b) sendText(b.dataset.say); }));
 
   /* ------------------------------------------------------------ voice */
   function setLang(l) {
@@ -297,9 +307,29 @@
     $("btnLang").textContent = lang === "ur" ? "اردو" : "EN"; $("stLang").value = lang; input.dir = "auto";
   }
   $("btnLang").addEventListener("click", () => setLang(lang === "en" ? "ur" : "en"));
+  /* recording bar: the text box turns into a live waveform + timer while the mic is open */
+  const compBox = $("compBox"), recBar = $("recBar"), wave = $("wave"), recText = $("recText"), recTime = $("recTime");
+  const BARS = 34, levels = new Array(BARS).fill(0.08);
+  for (let i = 0; i < BARS; i++) { const b = document.createElement("i"); b.style.setProperty("--i", String(i)); wave.appendChild(b); }
+  let recT0 = 0, recTick = null;
+  function drawWave() { for (let i = 0; i < BARS; i++) wave.children[i].style.setProperty("--lv", levels[i].toFixed(3)); }
+  function pushLevel(rms) {          // rms 0..~0.3 from the microphone, ~10 times a second
+    compBox.classList.add("metered");
+    levels.push(Math.min(1, Math.sqrt(Math.max(0, rms) * 16))); levels.shift(); drawWave();
+  }
+  function recUi(state) {            // "idle" | "listening" | "busy"
+    clearInterval(recTick);
+    compBox.classList.toggle("recording", state === "listening"); compBox.classList.toggle("busy", state === "busy");
+    recBar.hidden = state === "idle";
+    if (state === "listening") {
+      recT0 = Date.now(); compBox.classList.remove("metered"); levels.fill(0.08); drawWave();
+      recText.textContent = "Listening…"; recTime.textContent = "0:00";
+      recTick = setInterval(() => { const s = Math.floor((Date.now() - recT0) / 1000); recTime.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }, 250);
+    } else if (state === "busy") recText.textContent = "Transcribing on your laptop…";
+  }
   function micUi(on) {
     listening = on; const b = $("btnMic"); b.classList.toggle("live", on); b.setAttribute("aria-label", on ? "Stop dictation" : "Dictate");
-    b.textContent = ""; b.appendChild(icon(on ? "stop" : "mic")); input.placeholder = on ? "Listening…" : "Message Nyro";
+    b.textContent = ""; b.appendChild(icon(on ? "stop" : "mic")); input.placeholder = on ? "Listening…" : "Message Nyro"; recUi(on ? "listening" : "idle");
   }
   $("btnMic").addEventListener("click", async () => {
     if (listening) { SP.stop(); return; }
@@ -308,8 +338,8 @@
       if (connState !== "online" || !hostOnline) { note("Voice needs your laptop to be online.", "warn"); return; }
       micUi(true);
       SP.startRecording({
-        transcribe: transcribeOnLaptop,
-        onTranscribing: () => { input.placeholder = "Transcribing on your laptop…"; },
+        transcribe: transcribeOnLaptop, onLevel: pushLevel,
+        onTranscribing: () => { input.placeholder = "Transcribing on your laptop…"; recUi("busy"); },
         onEnd: (t) => {
           micUi(false); const v = (t || "").trim();
           if (!v) { note("I didn't catch that. Tap the mic and try again.", "warn"); return; }
@@ -323,7 +353,7 @@
     micUi(true);
     SP.start({
       lang: lang === "ur" ? "ur-PK" : "en-US",
-      onPartial: (t) => { input.value = t; autosize(); refreshSend(); },
+      onPartial: (t) => { input.value = t; autosize(); refreshSend(); recText.textContent = t ? "“" + t + "”" : "Listening…"; },
       onEnd: (t) => { micUi(false); const v = (t || input.value).trim(); if (v && sendText(v)) { input.value = ""; autosize(); refreshSend(); } },
       onError: (msg) => { micUi(false); note(msg, "err"); },
     });

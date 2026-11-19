@@ -42,6 +42,17 @@ test("labels and titles", () => {
   assert.equal(L.actionLabel("write_markdown"), "write a note");
   assert.equal(L.actionLabel("some_new_action"), "some new action");
   assert.equal(L.toolLabel("capture_foreground_window"), "Looking at your screen");
+  // every tool the laptop can run has a friendly label (new modes: control, code, file manager)
+  for (const [tool, label] of Object.entries({ search_files: "Searching your files", write_code_file: "Writing code",
+    organize_folder: "Organising files", arrange_desktop_icons: "Arranging desktop icons", click: "Clicking", close_tab: "Closing the tab" })) {
+    assert.equal(L.toolLabel(tool), label);
+  }
+  assert.deepEqual(L.replyChips("Moved 89 files. 32 University. Say 'undo' to put them back."), [{ label: "Undo", say: "undo" }]);
+  assert.deepEqual(L.replyChips("Arranged 32 desktop icons. Say 'restore desktop layout' to undo."), [{ label: "Restore layout", say: "restore desktop layout" }]);
+  assert.deepEqual(L.replyChips("Opening youtube."), []);
+  assert.deepEqual(L.replyChips(undefined), []);
+  assert.equal(L.actionLabel("organize_folder"), "organise a folder (files will be moved)");
+  assert.equal(L.actionLabel("request_control"), "control your mouse and keyboard");
   assert.equal(L.titleFrom("  hello   world "), "hello world");
   assert.equal(L.titleFrom(""), "New chat");
   assert.ok(L.titleFrom("x".repeat(100)).length <= 42);
